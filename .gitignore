@@ -5,3 +5,6 @@ dist/
 node_modules/
 node_modules
 ppt-assets/
+路演PPT/
+*.pptx
+*.key
