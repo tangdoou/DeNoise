@@ -21,6 +21,7 @@ import {
   extractTaskFromText,
   fetchProviderModels,
   generateFocusRetrospective,
+  generatePeriodFocusReview,
   judgeBatch,
   testProviderConnection
 } from './judgeEngine';
@@ -563,6 +564,12 @@ async function handleMessage(
         summary: computeFocusPeriodSummary(records),
         records: records.slice(0, 20)
       });
+    }
+    case 'GENERATE_PERIOD_REVIEW': {
+      const records = await getFocusHistoryRecords();
+      const summary = computeFocusPeriodSummary(records);
+      const review = await generatePeriodFocusReview(records, summary);
+      return success({ review });
     }
     case 'EXTRACT_TAB_DOM_SKELETON':
       return success(await extractActiveTabSkeleton());

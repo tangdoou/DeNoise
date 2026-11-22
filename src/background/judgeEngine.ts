@@ -1026,6 +1026,112 @@ export async function generateFocusRetrospective(
   }
 }
 
+function formatHourBucket(ms: number): string {
+  const hour = new Date(ms).getHours();
+  if (hour >= 6 && hour < 12) return '上午 08:00–12:00';
+  if (hour >= 12 && hour < 18) return '下午 14:00–18:00';
+  if (hour >= 18 && hour < 23) return '晚间 19:00–23:00';
+  return '深夜 23:00–02:00';
+}
+
+function buildPeriodReviewFallback(
+  records: import('../shared/types').FocusHistoryRecord[],
+  summary: import('../shared/types').FocusPeriodSummary
+): import('../shared/types').PeriodFocusReview {
+  const bucketMinutes = new Map<string, number>();
+  let totalBlurred = 0;
+  let totalDrift = 0;
+  for (const rec of records) {
+    const bucket = formatHourBucket(rec.startTime);
+    bucketMinutes.set(bucket, (bucketMinutes.get(bucket) ?? 0) + rec.durationMinutes);
+    totalBlurred += rec.blurredCount;
+    totalDrift += rec.driftCount;
+  }
+  let peakWindow = '下午 14:00–18:00';
+  let peakMins = -1;
+  for (const [bucket, mins] of bucketMinutes.entries()) {
+    if (mins > peakMins) {
+      peakMins = mins;
+      peakWindow = bucket;
+    }
+  }
+  const avgSnr =
+    records.length > 0
+      ? (records.reduce((acc, r) => acc + r.snrPercent, 0) / records.length).toFixed(1)
+      : '95.0';
+
+  return {
+    headline: `本周已专注 ${summary.weekMinutes} 分钟，平均信噪比 ${avgSnr}%`,
+    peakWindow,
+    mainDistraction:
+      totalDrift > 0
+        ? `累计触发 ${totalDrift} 次偏航提醒，已拦截 ${totalBlurred} 条推荐卡片`
+        : `已过滤 ${totalBlurred} 条无关推荐流，整体干扰控制稳定`,
+    suggestion: `把高难度任务排在${peakWindow}，长视频或查资料建议开标准/强力降噪。`,
+    modelUsed: 'local-ledger-heuristic',
+    generatedAt: Date.now()
+  };
+}
+
+export async function generatePeriodFocusReview(
+  records: import('../shared/types').FocusHistoryRecord[],
+  summary: import('../shared/types').FocusPeriodSummary
+): Promise<import('../shared/types').PeriodFocusReview> {
+  const fallback = buildPeriodReviewFallback(records, summary);
+  const settings = await getAppSettings();
+  const order: ProviderId[] = ['deepseek', 'custom', 'openai', 'gemini', 'anthropic', 'ollama'];
+  const provider = order
+    .map((id) => settings.providers[id])
+    .find((candidate) => candidate && candidate.enabled && hasUsableProviderAuth(candidate));
+
+  if (!provider || records.length === 0) return fallback;
+
+  const recentLines = records
+    .slice(0, 12)
+    .map((rec) => {
+      const dt = new Date(rec.startTime);
+      const hm = `${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+      return `- ${hm} | ${rec.durationMinutes}min | SNR ${rec.snrPercent}% | 虚化${rec.blurredCount}/偏航${rec.driftCount} | ${rec.taskIntent}`;
+    })
+    .join('\n');
+
+  const prompt = [
+    '你是专注工具 DeNoise 的周期复盘助手。根据用户本机账本摘要和最近记录，给出简短、具体、不说教的周期复盘。',
+    '要求：',
+    '1. 只输出 JSON，不要 markdown 或多余文字。',
+    '2. 字段：headline（22字内总结）、peakWindow（高效时段，如 下午 14:00-17:00）、mainDistraction（24字内主要干扰特点）、suggestion（32字内可执行建议）。',
+    '3. 严格基于以下数据，不要编造。',
+    '',
+    `今日：${summary.todayMinutes}min (${summary.todaySessions}次)，本周：${summary.weekMinutes}min (${summary.weekSessions}次)，本月：${summary.monthMinutes}min，连续：${summary.streakDays}天`,
+    '最近记录：',
+    recentLines,
+    '',
+    '输出示例：{"headline":"...","peakWindow":"...","mainDistraction":"...","suggestion":"..."}'
+  ].join('\n');
+
+  try {
+    const raw = await requestProviderText(provider, prompt, 320);
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start < 0 || end <= start) return fallback;
+    const parsed = JSON.parse(raw.slice(start, end + 1)) as Partial<
+      import('../shared/types').PeriodFocusReview
+    >;
+    if (!parsed.headline || !parsed.suggestion) return fallback;
+    return {
+      headline: parsed.headline.trim().slice(0, 48),
+      peakWindow: (parsed.peakWindow || fallback.peakWindow).trim().slice(0, 28),
+      mainDistraction: (parsed.mainDistraction || fallback.mainDistraction).trim().slice(0, 48),
+      suggestion: parsed.suggestion.trim().slice(0, 72),
+      modelUsed: `${provider.id}:${provider.model}`,
+      generatedAt: Date.now()
+    };
+  } catch (err) {
+    console.warn('[DeNoise] Period review failed, using local fallback:', err);
+    return fallback;
+  }
+}
+
 export async function testProviderConnection(
   provider: ProviderConfig
 ): Promise<{ ok: boolean; message: string; latencyMs: number }> {

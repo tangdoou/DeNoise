@@ -1,5 +1,6 @@
 import {
   BUILTIN_DEEPSEEK_API_KEY,
+  BUILTIN_ZLEAP_API_KEY,
   DEFAULT_SETTINGS,
   INITIAL_SESSION_STATE,
   STORAGE_KEYS
@@ -54,6 +55,11 @@ export async function getAppSettings(): Promise<AppSettings> {
             model: DEFAULT_SETTINGS.providers.jev.model,
             supportsVision: DEFAULT_SETTINGS.providers.jev.supportsVision
           };
+        }
+        // Auto-fill the built-in Zleap Zev-1 key if the user hasn't set one
+        if (!mergedProviders.jev.apiKey?.trim() && BUILTIN_ZLEAP_API_KEY) {
+          mergedProviders.jev.apiKey = BUILTIN_ZLEAP_API_KEY;
+          mergedProviders.jev.enabled = true;
         }
         // 只迁移我们历史上内置过的旧模型名，用户自己填的模型名一律不动
         const LEGACY_MODEL_IDS: Partial<Record<ProviderId, string[]>> = {

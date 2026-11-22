@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const BUILTIN_DEEPSEEK_API_KEY = import.meta.env.VITE_DENOISE_DEEPSEEK_KEY ?? '';
+export const BUILTIN_ZLEAP_API_KEY = import.meta.env.VITE_DENOISE_ZLEAP_KEY ?? '';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   providers: {
@@ -26,7 +27,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       id: 'jev',
       name: 'Zleap Zev-1 (System-1 判别模型)',
       enabled: true,
-      apiKey: '',
+      apiKey: BUILTIN_ZLEAP_API_KEY,
       baseUrl: 'https://api.zleap.com/v1/systemone',
       model: 'Zev-1',
       supportsVision: false

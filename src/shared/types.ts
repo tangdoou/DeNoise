@@ -129,6 +129,15 @@ export interface FocusPeriodSummary {
   membershipTier: string;
 }
 
+export interface PeriodFocusReview {
+  headline: string;
+  peakWindow: string;
+  mainDistraction: string;
+  suggestion: string;
+  modelUsed: string;
+  generatedAt: number;
+}
+
 export interface FocusSessionState {
   isActive: boolean;
   sessionId: string;
@@ -259,6 +268,7 @@ export type ExtensionMessage =
       payload: { providerConfig: ProviderConfig };
     }
   | { type: 'GET_FOCUS_STATS' }
+  | { type: 'GENERATE_PERIOD_REVIEW' }
   | {
       type: 'EXTRACT_TAB_DOM_SKELETON';
     }

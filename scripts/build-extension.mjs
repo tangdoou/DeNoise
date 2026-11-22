@@ -9,6 +9,7 @@ const rootDir = resolve(__dirname, '..');
 
 const env = loadEnv('production', rootDir, '');
 const deepseekKey = env.VITE_DENOISE_DEEPSEEK_KEY ?? '';
+const zleapKey = env.VITE_DENOISE_ZLEAP_KEY ?? '';
 
 function toSecretExpression(value) {
   if (!value) return "''";
@@ -20,12 +21,19 @@ function toSecretExpression(value) {
 }
 
 const envDefine = {
-  'import.meta.env.VITE_DENOISE_DEEPSEEK_KEY': toSecretExpression(deepseekKey)
+  'import.meta.env.VITE_DENOISE_DEEPSEEK_KEY': toSecretExpression(deepseekKey),
+  'import.meta.env.VITE_DENOISE_ZLEAP_KEY': toSecretExpression(zleapKey)
 };
 
 if (!deepseekKey) {
   console.warn(
     '⚠️  VITE_DENOISE_DEEPSEEK_KEY is not set. The built-in DeepSeek provider will have an empty API key.'
+  );
+}
+
+if (!zleapKey) {
+  console.warn(
+    '⚠️  VITE_DENOISE_ZLEAP_KEY is not set. The built-in Zleap Zev-1 provider will have an empty API key.'
   );
 }
 

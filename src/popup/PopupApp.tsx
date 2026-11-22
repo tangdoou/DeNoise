@@ -34,7 +34,8 @@ import {
   ExtensionMessage,
   FocusIntensity,
   FocusPeriodSummary,
-  FocusSessionState
+  FocusSessionState,
+  PeriodFocusReview
 } from '../shared/types';
 import { AncWaveform, AncWaveformMode } from './AncWaveform';
 
@@ -156,6 +157,8 @@ export const PopupApp: React.FC = () => {
   const [isRestoringAll, setIsRestoringAll] = useState<boolean>(false);
   const [isStopping, setIsStopping] = useState<boolean>(false);
   const [focusSummary, setFocusSummary] = useState<FocusPeriodSummary | null>(null);
+  const [periodReview, setPeriodReview] = useState<PeriodFocusReview | null>(null);
+  const [isGeneratingReview, setIsGeneratingReview] = useState<boolean>(false);
 
   const pendingSessionRef = useRef<FocusSessionState | null>(null);
   const taskInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -227,6 +230,22 @@ export const PopupApp: React.FC = () => {
   useEffect(() => {
     void loadFocusSummary();
   }, [loadFocusSummary, session.isActive, session.lastCompletedSession?.aiRetrospective?.status]);
+
+  const handleGeneratePeriodReview = useCallback(async () => {
+    if (isGeneratingReview) return;
+    setIsGeneratingReview(true);
+    try {
+      const response = await sendExtensionMessage<{
+        ok?: boolean;
+        data?: { review?: PeriodFocusReview };
+      }>({ type: 'GENERATE_PERIOD_REVIEW' });
+      if (response?.data?.review) {
+        setPeriodReview(response.data.review);
+      }
+    } finally {
+      setIsGeneratingReview(false);
+    }
+  }, [isGeneratingReview]);
 
   useEffect(() => {
     if (typeof chrome === 'undefined') {
@@ -1046,9 +1065,24 @@ export const PopupApp: React.FC = () => {
                   <span className="text-[11.5px] font-medium text-[#191919]">
                     专注记录
                   </span>
-                  <span className="font-mono text-[10.5px] text-[#787774]">
-                    连续 {focusSummary.streakDays} 天
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[10.5px] text-[#787774]">
+                      连续 {focusSummary.streakDays} 天
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleGeneratePeriodReview}
+                      disabled={isGeneratingReview}
+                      className="inline-flex items-center gap-1 rounded border border-[#E9E9E7] bg-[#F7F7F5] px-1.5 py-0.5 text-[10px] font-medium text-[#191919] transition-colors hover:border-[#191919] disabled:opacity-60"
+                    >
+                      {isGeneratingReview ? (
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-2.5 w-2.5 text-[#0F7B6C]" />
+                      )}
+                      <span>{isGeneratingReview ? '复盘中...' : 'AI 周期复盘'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-2 grid grid-cols-4 gap-1.5">
@@ -1098,6 +1132,25 @@ export const PopupApp: React.FC = () => {
                         )} 分钟解锁 7 天 Pro`}
                   </p>
                 </div>
+
+                {periodReview && (
+                  <div className="mt-2.5 rounded-md border border-[#E9E9E7] bg-[#F7F7F5] p-2 text-[10.5px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-[#191919]">
+                        {periodReview.headline}
+                      </span>
+                      <span className="shrink-0 font-mono text-[9.5px] text-[#0F7B6C]">
+                        {periodReview.peakWindow}
+                      </span>
+                    </div>
+                    <p className="mt-1 leading-relaxed text-[#787774]">
+                      {periodReview.mainDistraction}
+                    </p>
+                    <p className="mt-1 font-medium text-[#191919]">
+                      建议：{periodReview.suggestion}
+                    </p>
+                  </div>
+                )}
               </section>
             )}
           </div>
