@@ -152,7 +152,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         durationMinutes: summary.durationMinutes,
         stats: summary.stats,
         blackboxCount: Math.max(summary.blackboxCount, session.blackboxTabs.length),
-        parkedCount: Math.max(summary.parkedCount, session.parkedTabIds.length)
+        parkedCount: Math.max(summary.parkedCount, session.parkedTabIds.length),
+        aiRetrospective: summary.aiRetrospective
       });
       setExported(true);
       window.setTimeout(() => setExported(false), 2500);
@@ -241,6 +242,34 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <span className="dn-receipt-snr-label">心流纯净度评级</span>
               <span className="dn-grade-stamp dn-mono">[ {grade} ]</span>
             </div>
+          </div>
+
+          <div className="dn-receipt-dashed" />
+
+          <div className="dn-receipt-retro">
+            <div className="dn-receipt-retro-head">
+              <span className="dn-receipt-retro-title">专注复盘</span>
+              {summary.aiRetrospective?.badge ? (
+                <span className="dn-receipt-retro-badge">
+                  {summary.aiRetrospective.badge}
+                </span>
+              ) : (
+                <span className="dn-receipt-retro-badge is-pending">
+                  {summary.aiRetrospective ? '复盘中' : '本地总结'}
+                </span>
+              )}
+            </div>
+            <p className="dn-receipt-retro-summary">
+              {summary.aiRetrospective?.summary ||
+                `本次专注 ${durationText}，虚化 ${stats.blurredCardsCount} 条推荐流噪声，暂存 ${stats.parkedOrClosedTabsCount} 个无关页面。`}
+            </p>
+            {summary.aiRetrospective?.highlights?.length ? (
+              <ul className="dn-receipt-retro-list">
+                {summary.aiRetrospective.highlights.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           <div className="dn-receipt-dashed" />

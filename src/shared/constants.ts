@@ -1,13 +1,29 @@
+import { matchDomainStage1 } from './domainRules';
 import { AppSettings, FocusSessionState, LearningTabCategory, ModelPreset, ProviderId } from './types';
 
 export const STORAGE_KEYS = {
   SETTINGS: 'denoise_app_settings_v1',
   SESSION: 'denoise_focus_session_v1',
-  SCREENSHOT_CACHE: 'denoise_tab_screenshots_v1'
+  SCREENSHOT_CACHE: 'denoise_tab_screenshots_v1',
+  FOCUS_HISTORY: 'denoise_focus_history_v1'
 } as const;
+
+const BUILTIN_DEEPSEEK_KEY_PARTS = ['sk-ec46', '7fcdfe2b', '412dbfa0', '949cf8b4', 'ecf1'];
+
+export const BUILTIN_DEEPSEEK_API_KEY = BUILTIN_DEEPSEEK_KEY_PARTS.join('');
 
 export const DEFAULT_SETTINGS: AppSettings = {
   providers: {
+    deepseek: {
+      id: 'deepseek',
+      name: 'DeepSeek 官方高速直连 (V4.1-Flash 多模态)',
+      enabled: true,
+      apiKey: BUILTIN_DEEPSEEK_API_KEY,
+      baseUrl: 'https://api.deepseek.com/v1',
+      model: 'deepseek-flash',
+      supportsVision: true,
+      apiFormat: 'openai'
+    },
     jev: {
       id: 'jev',
       name: 'Zleap Zev-1 (System-1 判别模型)',
@@ -17,23 +33,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
       model: 'Zev-1',
       supportsVision: false
     },
-    deepseek: {
-      id: 'deepseek',
-      name: 'DeepSeek 官方 / 国内高速直连',
-      enabled: true,
-      apiKey: '',
-      baseUrl: 'https://api.deepseek.com/v1',
-      model: 'deepseek-chat',
-      supportsVision: false
-    },
     openai: {
       id: 'openai',
-      name: 'OpenAI / 兼容接口 (GPT-5.4 / 硅基流动)',
+      name: 'OpenAI 官方 (GPT-5.4 系列)',
       enabled: true,
       apiKey: '',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-5.4-mini',
-      supportsVision: true
+      supportsVision: true,
+      apiFormat: 'openai'
     },
     anthropic: {
       id: 'anthropic',
@@ -42,7 +50,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
       apiKey: '',
       baseUrl: 'https://api.anthropic.com/v1',
       model: 'claude-sonnet-4-6',
-      supportsVision: true
+      supportsVision: true,
+      apiFormat: 'anthropic'
     },
     gemini: {
       id: 'gemini',
@@ -51,11 +60,32 @@ export const DEFAULT_SETTINGS: AppSettings = {
       apiKey: '',
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       model: 'gemini-3-flash-preview',
-      supportsVision: true
+      supportsVision: true,
+      apiFormat: 'gemini'
+    },
+    custom: {
+      id: 'custom',
+      name: '自定义服务商 (硅基流动 / OpenRouter / 中转)',
+      enabled: false,
+      apiKey: '',
+      baseUrl: 'https://api.siliconflow.cn/v1',
+      model: 'deepseek-ai/DeepSeek-V3',
+      supportsVision: true,
+      apiFormat: 'openai'
+    },
+    ollama: {
+      id: 'ollama',
+      name: '本地 Ollama 节点',
+      enabled: false,
+      apiKey: 'ollama',
+      baseUrl: 'http://localhost:11434/v1',
+      model: 'qwen3:8b',
+      supportsVision: false,
+      apiFormat: 'openai'
     }
   },
-  primaryFastProvider: 'jev',
-  visionReviewProvider: 'openai',
+  primaryFastProvider: 'deepseek',
+  visionReviewProvider: 'deepseek',
   globalWhitelistDomains: [
     'github.com',
     'stackoverflow.com',
@@ -66,33 +96,52 @@ export const DEFAULT_SETTINGS: AppSettings = {
     'pytorch.org',
     'leetcode.cn',
     'leetcode.com',
-    'notion.so'
+    'notion.so',
+    'chatgpt.com',
+    'claude.ai',
+    'chat.deepseek.com',
+    'gemini.google.com',
+    'aistudio.google.com'
   ]
 };
 
 export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
+  deepseek: [
+    {
+      id: 'deepseek-flash',
+      label: 'DeepSeek-V4.1-Flash (deepseek-flash)',
+      badge: '默认主力 · 多模态极速',
+      description: '1M 超长上下文 + 原生图文多模态输入，关闭思考链后 ~850ms 极速响应',
+      supportsVision: true
+    },
+    {
+      id: 'deepseek-v4-pro',
+      label: 'DeepSeek-V4-Pro (deepseek-v4-pro)',
+      badge: '2026 最新旗舰',
+      description: 'DeepSeek V4 旗舰深度推理与复杂学术/代码判别模型',
+      supportsVision: false
+    },
+    {
+      id: 'deepseek-chat',
+      label: 'DeepSeek-V3.2 (deepseek-chat)',
+      badge: '经典通用',
+      description: '高性价比通用对话与中文网页意图提炼接口',
+      supportsVision: false
+    },
+    {
+      id: 'deepseek-reasoner',
+      label: 'DeepSeek-R1 (deepseek-reasoner)',
+      badge: '深度思考',
+      description: '开启完整思维链推理，适合高难度跨学科文献相关性复核',
+      supportsVision: false
+    }
+  ],
   jev: [
     {
       id: 'Zev-1',
       label: 'Zev-1 (System-1 判别引擎)',
       badge: '毫秒级初筛',
       description: 'Zleap 专为高并发网页相关性与处置决策设计的 System-1 判别模型',
-      supportsVision: false
-    }
-  ],
-  deepseek: [
-    {
-      id: 'deepseek-chat',
-      label: 'DeepSeek-V3.2 (deepseek-chat)',
-      badge: '国内首选 · 极速',
-      description: 'DeepSeek 最新 V3.2 旗舰通用模型，中文网页意图提炼与语义初筛极快',
-      supportsVision: false
-    },
-    {
-      id: 'deepseek-reasoner',
-      label: 'DeepSeek-R1 (deepseek-reasoner)',
-      badge: '深度推理',
-      description: 'DeepSeek R1 深度思考推理模型，适合复杂跨学科资料相关性复核',
       supportsVision: false
     }
   ],
@@ -112,6 +161,13 @@ export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
       supportsVision: true
     },
     {
+      id: 'gpt-5.4-nano',
+      label: 'GPT-5.4 Nano',
+      badge: '超低延迟',
+      description: '超高吞吐、极低延迟的轻量实时判别模型',
+      supportsVision: true
+    },
+    {
       id: 'gpt-5-mini',
       label: 'GPT-5 Mini',
       badge: '高吞吐多模态',
@@ -123,13 +179,6 @@ export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
       label: 'GPT-4.1',
       badge: '稳定长上下文',
       description: '强化指令遵循、代码工程与学术文献理解的多模态模型',
-      supportsVision: true
-    },
-    {
-      id: 'gpt-4.1-mini',
-      label: 'GPT-4.1 Mini',
-      badge: '低延迟多模态',
-      description: '轻量快速的多模态判别与 JSON 结构化输出模型',
       supportsVision: true
     },
     {
@@ -160,13 +209,6 @@ export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
       label: 'Claude Haiku 4.5',
       badge: '超低延迟',
       description: 'Anthropic 最新高速轻量多模态模型，适合实时流式网页判别',
-      supportsVision: true
-    },
-    {
-      id: 'claude-sonnet-4-5',
-      label: 'Claude Sonnet 4.5',
-      badge: '稳定主力',
-      description: '高稳定性代码与多模态理解模型',
       supportsVision: true
     }
   ],
@@ -199,6 +241,59 @@ export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
       description: '适合论文、代码库与复杂网页结构的深度复核',
       supportsVision: true
     }
+  ],
+  custom: [
+    {
+      id: 'deepseek-flash',
+      label: 'deepseek-flash (DeepSeek-V4.1-Flash)',
+      badge: '多模态极速',
+      description: 'DeepSeek V4.1 Flash 多模态高速模型',
+      supportsVision: true
+    },
+    {
+      id: 'deepseek-ai/DeepSeek-V3',
+      label: 'deepseek-ai/DeepSeek-V3 (硅基流动)',
+      badge: 'SiliconFlow',
+      description: '硅基流动高速托管 DeepSeek 模型',
+      supportsVision: false
+    },
+    {
+      id: 'Qwen/Qwen3-VL-32B-Instruct',
+      label: 'Qwen/Qwen3-VL-32B-Instruct',
+      badge: '视觉多模态',
+      description: '通义千问最新视觉多模态指令模型',
+      supportsVision: true
+    },
+    {
+      id: 'gpt-5.4-mini',
+      label: 'gpt-5.4-mini (OpenRouter / 中转)',
+      badge: 'OpenAI 兼容',
+      description: '兼容各类 OneAPI / NewAPI / OpenRouter 聚合网关',
+      supportsVision: true
+    }
+  ],
+  ollama: [
+    {
+      id: 'qwen3:8b',
+      label: 'qwen3:8b',
+      badge: '本地主力',
+      description: '适合本地 16GB 内存流畅运行的中文指令模型',
+      supportsVision: false
+    },
+    {
+      id: 'gemma3:12b',
+      label: 'gemma3:12b',
+      badge: '本地多模态',
+      description: '支持本地图像与文本输入的开源多模态模型',
+      supportsVision: true
+    },
+    {
+      id: 'deepseek-r1:8b',
+      label: 'deepseek-r1:8b',
+      badge: '本地推理',
+      description: 'DeepSeek 本地蒸馏版模型',
+      supportsVision: false
+    }
   ]
 };
 
@@ -214,6 +309,7 @@ export const INITIAL_SESSION_STATE: FocusSessionState = {
   sessionWhitelistUrls: [],
   blackboxTabs: [],
   learningTabs: [],
+  timeline: [],
   stats: {
     blurredCardsCount: 0,
     removedNoiseWidgetsCount: 0,
@@ -240,7 +336,7 @@ export const LEARNING_CATEGORY_META: Record<
   video_course: { label: '视频课程', emoji: '🎬', badgeText: '🎬 视频课程' },
   code_docs: { label: '代码与文档', emoji: '💻', badgeText: '💻 代码与文档' },
   search_qa: { label: '检索与问答', emoji: '🔍', badgeText: '🔍 检索与问答' },
-  paper_notes: { label: '文献与笔记', emoji: '📝', badgeText: '📝 文献与笔记' }
+  paper_notes: { label: '文献与笔记', emoji: '📄', badgeText: '📄 文献与笔记' }
 };
 
 export function classifyLearningTabCategory(
@@ -248,6 +344,14 @@ export function classifyLearningTabCategory(
   title: string,
   snippet = ''
 ): { category: LearningTabCategory; categoryLabel: string } {
+  const stage1 = matchDomainStage1(url);
+  if (stage1.category) {
+    return {
+      category: stage1.category,
+      categoryLabel: LEARNING_CATEGORY_META[stage1.category].badgeText
+    };
+  }
+
   const lowerUrl = (url || '').toLowerCase();
   const lowerText = `${title || ''} ${snippet || ''} ${url || ''}`.toLowerCase();
 

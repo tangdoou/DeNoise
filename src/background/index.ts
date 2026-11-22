@@ -1,11 +1,17 @@
-import { INITIAL_SESSION_STATE } from '../shared/constants';
+import { INITIAL_SESSION_STATE, calculateSnrPercent } from '../shared/constants';
 import {
+  appendFocusHistoryRecord,
+  appendSessionTimelineEvent,
+  computeFocusPeriodSummary,
+  getFocusHistoryRecords,
   getSessionState,
   saveSessionState,
   updateSessionState
 } from '../shared/storage';
 import {
   ExtensionMessage,
+  FocusAiRetrospective,
+  FocusHistoryRecord,
   FocusSessionState,
   JudgeItemInput,
   ProviderConfig,
@@ -13,6 +19,8 @@ import {
 } from '../shared/types';
 import {
   extractTaskFromText,
+  fetchProviderModels,
+  generateFocusRetrospective,
   judgeBatch,
   testProviderConnection
 } from './judgeEngine';
@@ -43,6 +51,13 @@ function failure(message: string): ExtensionResponse {
   return { ok: false, error: message };
 }
 
+function computeGrade(snr: number, driftNudges: number): string {
+  if (snr >= 95 && driftNudges <= 1) return 'S';
+  if (snr >= 93 && driftNudges <= 2) return 'A+';
+  if (snr >= 90) return 'A';
+  return 'B+';
+}
+
 async function broadcastSessionState(state: FocusSessionState): Promise<void> {
   const message: ExtensionMessage = {
     type: 'SESSION_STATE_UPDATED',
@@ -71,7 +86,18 @@ async function startFocusSession(
     startTime,
     durationMinutes,
     endTime: startTime + durationMinutes * 60_000,
-    showReceiptModal: false
+    showReceiptModal: false,
+    timeline: [
+      {
+        id: `evt-${startTime}-start`,
+        timestamp: startTime,
+        type: 'session_start',
+        label: taskIntent.trim() || '未命名任务',
+        detail: `计划 ${durationMinutes} 分钟 · ${
+          intensity === 'strict' ? '强力降噪' : intensity === 'gentle' ? '温和降噪' : '标准降噪'
+        }`
+      }
+    ]
   };
   await saveSessionState(state);
   await governTabsOnSessionStart(state);
@@ -81,6 +107,21 @@ async function startFocusSession(
 async function stopFocusSession(showReceipt: boolean): Promise<FocusSessionState> {
   const current = await getSessionState();
   const endTime = Date.now();
+  const durationMinutes = Math.max(
+    0,
+    Math.round((endTime - Math.min(current.startTime, endTime)) / 60_000)
+  );
+  const timeline = [
+    ...(current.timeline ?? []),
+    {
+      id: `evt-${endTime}-end`,
+      timestamp: endTime,
+      type: 'session_end' as const,
+      label: '专注结束',
+      detail: `实际 ${durationMinutes} 分钟`
+    }
+  ].slice(-30);
+
   const state = await updateSessionState((prev) => ({
     ...prev,
     isActive: false,
@@ -90,17 +131,99 @@ async function stopFocusSession(showReceipt: boolean): Promise<FocusSessionState
       intensity: prev.intensity,
       startTime: prev.startTime,
       endTime,
-      durationMinutes: Math.max(
-        0,
-        Math.round((endTime - Math.min(prev.startTime, endTime)) / 60_000)
-      ),
+      durationMinutes,
       stats: prev.stats,
       blackboxCount: prev.blackboxTabs.length,
-      parkedCount: prev.parkedTabIds.length
+      parkedCount: prev.parkedTabIds.length,
+      timeline
     }
   }));
   await broadcastSessionState(state);
+
+  void finalizeSessionRetrospective(state, durationMinutes).catch((err) => {
+    console.warn('[DeNoise] Failed to finalize session retrospective:', err);
+  });
   return state;
+}
+
+async function finalizeSessionRetrospective(
+  state: FocusSessionState,
+  durationMinutes: number
+): Promise<void> {
+  const summary = state.lastCompletedSession;
+  if (!summary) return;
+
+  const snrPercent = calculateSnrPercent(summary.stats);
+  const recordId = state.sessionId || `session-${summary.startTime}`;
+  const baseRecord: FocusHistoryRecord = {
+    id: recordId,
+    taskIntent: summary.taskIntent,
+    intensity: summary.intensity,
+    startTime: summary.startTime,
+    endTime: summary.endTime,
+    durationMinutes,
+    snrPercent,
+    grade: computeGrade(snrPercent, summary.stats.driftNudgesCount),
+    blurredCount: summary.stats.blurredCardsCount,
+    parkedCount: summary.stats.parkedOrClosedTabsCount,
+    driftCount: summary.stats.driftNudgesCount
+  };
+  await appendFocusHistoryRecord(baseRecord);
+
+  const ai: FocusAiRetrospective = {
+    status: 'pending',
+    badge: '复盘中',
+    summary: '',
+    highlights: [],
+    modelUsed: '',
+    generatedAt: Date.now()
+  };
+  await updateSessionState((prev) =>
+    prev.lastCompletedSession
+      ? {
+          ...prev,
+          lastCompletedSession: { ...prev.lastCompletedSession, aiRetrospective: ai }
+        }
+      : prev
+  );
+
+  const output = await generateFocusRetrospective({
+    taskIntent: summary.taskIntent,
+    intensity: summary.intensity,
+    durationMinutes,
+    blurredCount: summary.stats.blurredCardsCount,
+    parkedCount: summary.stats.parkedOrClosedTabsCount,
+    driftCount: summary.stats.driftNudgesCount,
+    visionProtected: summary.stats.visionProtectedTabsCount,
+    learningTitles: state.learningTabs.map((tab) => tab.title),
+    timeline: (summary.timeline ?? []).map((event) => ({
+      label: event.label,
+      type: event.type
+    }))
+  });
+
+  const ready: FocusAiRetrospective = {
+    status: output.modelUsed === 'local-heuristic' ? 'fallback' : 'ready',
+    badge: output.badge,
+    summary: output.summary,
+    highlights: output.highlights,
+    modelUsed: output.modelUsed,
+    generatedAt: Date.now()
+  };
+  const next = await updateSessionState((prev) =>
+    prev.lastCompletedSession && prev.lastCompletedSession.startTime === summary.startTime
+      ? {
+          ...prev,
+          lastCompletedSession: { ...prev.lastCompletedSession, aiRetrospective: ready }
+        }
+      : prev
+  );
+  await appendFocusHistoryRecord({
+    ...baseRecord,
+    aiBadge: ready.badge,
+    aiSummary: ready.summary
+  });
+  await broadcastSessionState(next);
 }
 
 async function completeExpiredSession(): Promise<void> {
@@ -387,6 +510,17 @@ async function handleMessage(
     case 'TEST_PROVIDER_CONNECTION': {
       const providerConfig = message.payload.providerConfig as ProviderConfig;
       return success(await testProviderConnection(providerConfig));
+    }
+    case 'FETCH_PROVIDER_MODELS': {
+      const providerConfig = message.payload.providerConfig as ProviderConfig;
+      return success(await fetchProviderModels(providerConfig));
+    }
+    case 'GET_FOCUS_STATS': {
+      const records = await getFocusHistoryRecords();
+      return success({
+        summary: computeFocusPeriodSummary(records),
+        records: records.slice(0, 20)
+      });
     }
     case 'EXTRACT_TAB_DOM_SKELETON':
       return success(await extractActiveTabSkeleton());

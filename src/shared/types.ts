@@ -250,6 +250,11 @@ export type ExtensionMessage =
       payload: { providerConfig: ProviderConfig };
     }
   | {
+      type: 'FETCH_PROVIDER_MODELS';
+      payload: { providerConfig: ProviderConfig };
+    }
+  | { type: 'GET_FOCUS_STATS' }
+  | {
       type: 'EXTRACT_TAB_DOM_SKELETON';
     }
   | {

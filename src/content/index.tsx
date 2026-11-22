@@ -886,6 +886,65 @@ const SHADOW_HUD_CSS = `
     padding: 12px 14px;
   }
 
+  .dn-receipt-retro {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #F8FAF9;
+    border: 1px solid #D7E9E0;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .dn-receipt-retro-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .dn-receipt-retro-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #71717A;
+    text-transform: uppercase;
+  }
+
+  .dn-receipt-retro-badge {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #047857;
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    border-radius: 5px;
+    padding: 1px 6px;
+  }
+
+  .dn-receipt-retro-badge.is-pending {
+    color: #787774;
+    background: #F7F7F5;
+    border-color: #E9E9E7;
+  }
+
+  .dn-receipt-retro-summary {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.65;
+    color: #3F3F46;
+  }
+
+  .dn-receipt-retro-list {
+    margin: 0;
+    padding-left: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #71717A;
+  }
+
   .dn-receipt-snr-row,
   .dn-receipt-grade-row {
     display: flex;

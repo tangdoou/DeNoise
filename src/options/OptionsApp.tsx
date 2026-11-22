@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Check,
@@ -27,7 +27,15 @@ import {
   ProviderId
 } from '../shared/types';
 
-const PROVIDER_ORDER: ProviderId[] = ['jev', 'deepseek', 'openai', 'anthropic', 'gemini'];
+const PROVIDER_ORDER: ProviderId[] = [
+  'deepseek',
+  'jev',
+  'openai',
+  'anthropic',
+  'gemini',
+  'custom',
+  'ollama'
+];
 
 const PROVIDER_META: Record<
   ProviderId,
@@ -50,10 +58,10 @@ const PROVIDER_META: Record<
   },
   deepseek: {
     shortLabel: 'DeepSeek 官方直连',
-    badge: '国内首选 / 极速',
-    description: 'DeepSeek 官方 API (V3.2 / R1)，国内直连无需代理，极速中文任务提炼与网页语义判别。',
-    modelHint: 'deepseek-chat',
-    placeholderModel: 'deepseek-chat',
+    badge: '默认主力 / V4.1',
+    description: 'DeepSeek 官方 API，V4.1-Flash 支持图文多模态与 1M 上下文，国内直连无需代理。',
+    modelHint: 'deepseek-flash',
+    placeholderModel: 'deepseek-flash',
     placeholderUrl: 'https://api.deepseek.com/v1'
   },
   openai: {
@@ -79,6 +87,22 @@ const PROVIDER_META: Record<
     modelHint: 'gemini-3-flash-preview',
     placeholderModel: 'gemini-3-flash-preview',
     placeholderUrl: 'https://generativelanguage.googleapis.com/v1beta'
+  },
+  custom: {
+    shortLabel: '自定义服务商',
+    badge: '中转 / 聚合平台',
+    description: '硅基流动、OpenRouter、OneAPI 等任意兼容端点，可自选接口协议并自动拉取模型列表。',
+    modelHint: 'deepseek-ai/DeepSeek-V4.1-Flash',
+    placeholderModel: 'deepseek-ai/DeepSeek-V4.1-Flash',
+    placeholderUrl: 'https://api.siliconflow.cn/v1'
+  },
+  ollama: {
+    shortLabel: '本地 Ollama',
+    badge: '纯本地 / 免 Key',
+    description: '直连本机 Ollama 服务，模型与推理全部留在本地，只需填写节点地址。',
+    modelHint: 'qwen3:8b',
+    placeholderModel: 'qwen3:8b',
+    placeholderUrl: 'http://localhost:11434/v1'
   }
 };
 
@@ -131,7 +155,9 @@ export const OptionsApp: React.FC = () => {
     deepseek: false,
     openai: false,
     anthropic: false,
-    gemini: false
+    gemini: false,
+    custom: false,
+    ollama: false
   });
 
   const [testStates, setTestStates] = useState<Record<ProviderId, ConnectionTestState>>({
@@ -139,10 +165,17 @@ export const OptionsApp: React.FC = () => {
     deepseek: { status: 'idle' },
     openai: { status: 'idle' },
     anthropic: { status: 'idle' },
-    gemini: { status: 'idle' }
+    gemini: { status: 'idle' },
+    custom: { status: 'idle' },
+    ollama: { status: 'idle' }
   });
 
   const [openModelDrawer, setOpenModelDrawer] = useState<ProviderId | null>(null);
+  const modelFieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [remoteModels, setRemoteModels] = useState<Record<string, string[]>>({});
+  const [modelFetchState, setModelFetchState] = useState<
+    Record<string, { status: 'idle' | 'loading' | 'error'; message?: string }>
+  >({});
 
   const [domainInput, setDomainInput] = useState<string>('');
   const [domainError, setDomainError] = useState<string>('');
@@ -164,6 +197,29 @@ export const OptionsApp: React.FC = () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!openModelDrawer) {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const container = modelFieldRefs.current[openModelDrawer];
+      if (container && !container.contains(event.target as Node)) {
+        setOpenModelDrawer(null);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenModelDrawer(null);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openModelDrawer]);
 
   const hasUnsavedChanges = useMemo(
     () => JSON.stringify(settings) !== savedSnapshot,
@@ -231,7 +287,7 @@ export const OptionsApp: React.FC = () => {
   const handleTestProvider = async (providerId: ProviderId) => {
     const providerConfig =
       settings.providers[providerId] ?? DEFAULT_SETTINGS.providers[providerId];
-    if (!providerConfig.apiKey.trim()) {
+    if (!providerConfig.apiKey.trim() && providerId !== 'ollama') {
       setTestStates((prev) => ({
         ...prev,
         [providerId]: {
@@ -321,6 +377,70 @@ export const OptionsApp: React.FC = () => {
         [providerId]: {
           status: 'error',
           message
+        }
+      }));
+    }
+  };
+
+  const handleFetchRemoteModels = async (providerId: ProviderId) => {
+    const config = settings.providers[providerId] ?? DEFAULT_SETTINGS.providers[providerId];
+    if (!config.baseUrl.trim()) {
+      setModelFetchState((prev) => ({
+        ...prev,
+        [providerId]: { status: 'error', message: '请先填写 Base URL' }
+      }));
+      return;
+    }
+    if (!config.apiKey.trim() && providerId !== 'ollama') {
+      setModelFetchState((prev) => ({
+        ...prev,
+        [providerId]: { status: 'error', message: '请先填写 API Key' }
+      }));
+      return;
+    }
+
+    setModelFetchState((prev) => ({
+      ...prev,
+      [providerId]: { status: 'loading' }
+    }));
+
+    try {
+      const response = await sendExtensionMessage<{
+        ok?: boolean;
+        data?: { models?: string[]; error?: string };
+        error?: string;
+      }>({
+        type: 'FETCH_PROVIDER_MODELS',
+        payload: { providerConfig: config }
+      });
+
+      const models = response?.data?.models ?? [];
+      if (!response || response.ok === false || models.length === 0) {
+        setModelFetchState((prev) => ({
+          ...prev,
+          [providerId]: {
+            status: 'error',
+            message:
+              response?.data?.error ||
+              response?.error ||
+              '端点未返回模型列表，可手动填写模型名'
+          }
+        }));
+        return;
+      }
+
+      setRemoteModels((prev) => ({ ...prev, [providerId]: models }));
+      setModelFetchState((prev) => ({
+        ...prev,
+        [providerId]: { status: 'idle', message: `已拉取 ${models.length} 个模型` }
+      }));
+      setOpenModelDrawer(providerId);
+    } catch (err) {
+      setModelFetchState((prev) => ({
+        ...prev,
+        [providerId]: {
+          status: 'error',
+          message: err instanceof Error ? err.message : '拉取模型列表失败'
         }
       }));
     }
@@ -641,13 +761,13 @@ export const OptionsApp: React.FC = () => {
                   tabIndex={0}
                   className="inline-flex cursor-help items-center gap-1.5 rounded-full border border-[#E9E9E7] bg-[#F7F7F5] px-2.5 py-1 text-[11.5px] font-medium text-[#787774] transition-colors hover:border-[#191919]/30 hover:bg-[#EFEFED] hover:text-[#191919] focus:outline-none"
                 >
-                  <span>ⓘ 0 误杀自动降级保底机制（悬浮查看）</span>
+                  <span>ⓘ 存疑页面只折叠不关闭（悬浮查看）</span>
                 </span>
                 <div
                   role="tooltip"
                   className="pointer-events-none invisible absolute bottom-full left-0 z-30 mb-2 w-[340px] max-w-[85vw] rounded-lg border border-[#E9E9E7] bg-[#191919] p-3 text-[11.5px] leading-relaxed text-white opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
                 >
-                  当所选复核引擎未开启多模态看图（supportsVision = false）或目标标签页尚无缓存截图时，系统会自动退化为「DOM 语义骨架深度复核」，且对灰区存疑页强制改为归入 💤 暂存休息舱 折叠保护，绝不盲目关闭学习资料页。
+                  复核引擎看不了图（supportsVision 关闭），或目标标签页还没截到图时，会退一步用 DOM 语义骨架判断。仍拿不准的页面一律收进 💤 暂存休息舱，只折叠、不关闭，随时可以点回来。
                 </div>
               </div>
             </div>
@@ -657,7 +777,7 @@ export const OptionsApp: React.FC = () => {
             <div className="flex items-baseline justify-between px-0.5">
               <div>
                 <h2 className="text-[15px] font-semibold text-[#191919]">
-                  五大 AI 供应商配置槽位 (BYOK · 支持 DeepSeek 国内直连)
+                  AI 供应商配置槽位 (BYOK · 支持 DeepSeek 国内直连与本地 Ollama)
                 </h2>
                 <p className="mt-0.5 text-[12px] text-[#787774]">
                   按需启用任意供应商，支持自定义中转 Base URL 与模型名称。
@@ -670,6 +790,19 @@ export const OptionsApp: React.FC = () => {
               const config = settings.providers[providerId] ?? defaults;
               const meta = PROVIDER_META[providerId];
               const presets = PROVIDER_MODEL_PRESETS[providerId] ?? [];
+              const fetchedModels = remoteModels[providerId] ?? [];
+              const drawerPresets: ModelPreset[] = [
+                ...presets,
+                ...fetchedModels
+                  .filter((id) => !presets.some((preset) => preset.id === id))
+                  .map((id) => ({
+                    id,
+                    label: id,
+                    badge: '从端点拉取',
+                    description: '该模型由端点 /models 接口实时返回'
+                  }))
+              ];
+              const fetchState = modelFetchState[providerId];
               const isDrawerOpen = openModelDrawer === providerId;
               const testState = testStates[providerId];
               const isKeyVisible = visibleKeys[providerId];
@@ -762,9 +895,40 @@ export const OptionsApp: React.FC = () => {
                         placeholder={meta.placeholderUrl || defaults.baseUrl}
                         className="w-full rounded-md border border-[#E9E9E7] bg-[#F7F7F5] px-3 py-2 font-mono text-[12px] text-[#191919] placeholder:text-[#787774]/70 focus:border-[#191919] focus:bg-white focus:outline-none"
                       />
+                      {providerId === 'custom' && (
+                        <div className="mt-2">
+                          <label
+                            htmlFor={`api-format-${providerId}`}
+                            className="mb-1 block text-[11.5px] font-medium text-[#191919]"
+                          >
+                            接口格式
+                          </label>
+                          <select
+                            id={`api-format-${providerId}`}
+                            value={config.apiFormat ?? 'openai'}
+                            onChange={(event) =>
+                              updateProviderField(
+                                providerId,
+                                'apiFormat',
+                                event.target.value as ProviderConfig['apiFormat']
+                              )
+                            }
+                            className="w-full rounded-md border border-[#E9E9E7] bg-white px-2.5 py-1.5 text-[12px] text-[#191919] focus:border-[#191919] focus:outline-none"
+                          >
+                            <option value="openai">OpenAI 兼容 (/chat/completions)</option>
+                            <option value="anthropic">Anthropic (/messages)</option>
+                            <option value="gemini">Gemini (generateContent)</option>
+                          </select>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="relative">
+                    <div
+                      className={`relative ${isDrawerOpen ? 'z-40' : ''}`}
+                      ref={(node) => {
+                        modelFieldRefs.current[providerId] = node;
+                      }}
+                    >
                       <div className="mb-1 flex items-center justify-between gap-2">
                         <label
                           htmlFor={`model-${providerId}`}
@@ -772,26 +936,11 @@ export const OptionsApp: React.FC = () => {
                         >
                           Model Name
                         </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenModelDrawer((prev) =>
-                              prev === providerId ? null : providerId
-                            )
-                          }
-                          className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium transition-colors ${
-                            isDrawerOpen
-                              ? 'border-[#191919] bg-[#191919] text-white'
-                              : 'border-[#E9E9E7] bg-[#F7F7F5] text-[#191919] hover:border-[#191919]/40 hover:bg-[#EFEFED]'
-                          }`}
-                        >
-                          <span>📦 模型抽屉</span>
-                          <ChevronDown
-                            className={`h-3 w-3 transition-transform ${
-                              isDrawerOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
+                        {drawerPresets.length > 0 && (
+                          <span className="text-[10.5px] text-[#787774]">
+                            {drawerPresets.length} 个可选
+                          </span>
+                        )}
                       </div>
 
                       <div className="relative">
@@ -803,25 +952,38 @@ export const OptionsApp: React.FC = () => {
                             updateProviderField(providerId, 'model', event.target.value)
                           }
                           placeholder={meta.placeholderModel}
-                          className="w-full rounded-md border border-[#E9E9E7] bg-[#F7F7F5] py-2 pl-3 pr-24 font-mono text-[12px] text-[#191919] placeholder:text-[#787774]/70 focus:border-[#191919] focus:bg-white focus:outline-none"
+                          className="w-full rounded-md border border-[#E9E9E7] bg-[#F7F7F5] py-2 pl-3 pr-28 font-mono text-[12px] text-[#191919] placeholder:text-[#787774]/70 focus:border-[#191919] focus:bg-white focus:outline-none"
                         />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOpenModelDrawer((prev) =>
-                              prev === providerId ? null : providerId
-                            )
-                          }
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-[11px] font-medium text-[#787774] transition-colors hover:bg-[#EFEFED] hover:text-[#191919]"
-                        >
-                          选择最新模型 ▾
-                        </button>
+                        {drawerPresets.length > 0 && (
+                          <button
+                            type="button"
+                            aria-expanded={isDrawerOpen}
+                            aria-label="打开模型预设列表"
+                            onClick={() =>
+                              setOpenModelDrawer((prev) =>
+                                prev === providerId ? null : providerId
+                              )
+                            }
+                            className={`absolute right-1.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+                              isDrawerOpen
+                                ? 'bg-[#191919] text-white'
+                                : 'text-[#787774] hover:bg-[#EFEFED] hover:text-[#191919]'
+                            }`}
+                          >
+                            <span>选择模型</span>
+                            <ChevronDown
+                              className={`h-3 w-3 transition-transform ${
+                                isDrawerOpen ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </button>
+                        )}
                       </div>
 
-                      {isDrawerOpen && presets.length > 0 && (
-                        <div className="mt-2 rounded-lg border border-[#E9E9E7] bg-white p-2 shadow-md">
+                      {isDrawerOpen && drawerPresets.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-40 mt-1.5 rounded-lg border border-[#E9E9E7] bg-white p-2 shadow-lg">
                           <div className="mb-1.5 flex items-center justify-between px-1.5 text-[11px] text-[#787774]">
-                            <span>官方推荐与 2026 最新模型预设（点击一键填入）</span>
+                            <span>点击一键填入模型名</span>
                             <button
                               type="button"
                               onClick={() => setOpenModelDrawer(null)}
@@ -831,8 +993,31 @@ export const OptionsApp: React.FC = () => {
                               <X className="h-3 w-3" />
                             </button>
                           </div>
+                          {(providerId === 'custom' || providerId === 'ollama') && (
+                            <div className="mb-1.5 flex items-center justify-between gap-2 rounded-md bg-[#F7F7F5] px-2 py-1.5">
+                              <span className="text-[10.5px] text-[#787774]">
+                                {fetchState?.message ||
+                                  (providerId === 'ollama'
+                                    ? '从本地节点读取已下载模型'
+                                    : '从该端点读取可用模型列表')}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={fetchState?.status === 'loading'}
+                                onClick={() => void handleFetchRemoteModels(providerId)}
+                                className="inline-flex shrink-0 items-center gap-1 rounded border border-[#E9E9E7] bg-white px-1.5 py-0.5 text-[10.5px] font-medium text-[#191919] hover:bg-[#EFEFED] disabled:opacity-60"
+                              >
+                                {fetchState?.status === 'loading' ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-3 w-3" />
+                                )}
+                                <span>拉取模型</span>
+                              </button>
+                            </div>
+                          )}
                           <div className="max-h-60 space-y-1 overflow-y-auto pr-0.5">
-                            {presets.map((preset) => {
+                            {drawerPresets.map((preset) => {
                               const isSelected = config.model === preset.id;
                               return (
                                 <button

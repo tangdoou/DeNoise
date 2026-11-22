@@ -28,6 +28,7 @@ import {
   BlackboxTabItem,
   ExtensionMessage,
   FocusIntensity,
+  FocusPeriodSummary,
   FocusSessionState
 } from '../shared/types';
 import { AncWaveform, AncWaveformMode } from './AncWaveform';
@@ -149,6 +150,7 @@ export const PopupApp: React.FC = () => {
   const [whitelistingState, setWhitelistingState] = useState<'idle' | 'saving' | 'done'>('idle');
   const [isRestoringAll, setIsRestoringAll] = useState<boolean>(false);
   const [isStopping, setIsStopping] = useState<boolean>(false);
+  const [focusSummary, setFocusSummary] = useState<FocusPeriodSummary | null>(null);
 
   const pendingSessionRef = useRef<FocusSessionState | null>(null);
   const taskInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -198,6 +200,21 @@ export const PopupApp: React.FC = () => {
   useEffect(() => {
     void loadInitialState();
   }, [loadInitialState]);
+
+  const loadFocusSummary = useCallback(async () => {
+    const response = await sendExtensionMessage<{
+      ok?: boolean;
+      data?: { summary?: FocusPeriodSummary };
+    }>({ type: 'GET_FOCUS_STATS' });
+    const summary = response?.data?.summary;
+    if (summary) {
+      setFocusSummary(summary);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFocusSummary();
+  }, [loadFocusSummary, session.isActive, session.lastCompletedSession?.aiRetrospective?.status]);
 
   useEffect(() => {
     if (typeof chrome === 'undefined') {
@@ -1010,6 +1027,67 @@ export const PopupApp: React.FC = () => {
                 })}
               </div>
             </section>
+
+            {focusSummary && (
+              <section className="rounded-lg border border-[#E9E9E7] bg-white p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11.5px] font-medium text-[#191919]">
+                    专注记录
+                  </span>
+                  <span className="font-mono text-[10.5px] text-[#787774]">
+                    连续 {focusSummary.streakDays} 天
+                  </span>
+                </div>
+
+                <div className="mt-2 grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: '今日', minutes: focusSummary.todayMinutes, sessions: focusSummary.todaySessions },
+                    { label: '本周', minutes: focusSummary.weekMinutes, sessions: focusSummary.weekSessions },
+                    { label: '本月', minutes: focusSummary.monthMinutes, sessions: focusSummary.monthSessions },
+                    { label: '今年', minutes: focusSummary.yearMinutes, sessions: focusSummary.yearSessions }
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-md border border-[#E9E9E7] bg-[#F7F7F5] px-1.5 py-1.5"
+                    >
+                      <div className="text-[10px] text-[#787774]">{item.label}</div>
+                      <div className="mt-0.5 font-mono text-[15px] font-semibold leading-none text-[#191919] tabular-nums">
+                        {item.minutes}
+                        <span className="ml-0.5 text-[9.5px] font-normal text-[#787774]">min</span>
+                      </div>
+                      <div className="mt-0.5 text-[9.5px] text-[#787774]">
+                        {item.sessions} 次
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2.5">
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <span className="text-[#787774]">
+                      本周打卡 {focusSummary.weekMinutes}/{focusSummary.weeklyTargetMinutes} min
+                    </span>
+                    <span className="font-mono text-[#0F7B6C]">
+                      {focusSummary.weeklyProgressPercent}%
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[#EFEFED]">
+                    <div
+                      className="h-full rounded-full bg-[#0F7B6C] transition-[width] duration-500"
+                      style={{ width: `${focusSummary.weeklyProgressPercent}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px] text-[#787774]">
+                    {focusSummary.weeklyProgressPercent >= 100
+                      ? '本周目标已达成，Pro 权益已解锁'
+                      : `再专注 ${Math.max(
+                          0,
+                          focusSummary.weeklyTargetMinutes - focusSummary.weekMinutes
+                        )} 分钟解锁 7 天 Pro`}
+                  </p>
+                </div>
+              </section>
+            )}
           </div>
 
           <footer className="space-y-2.5 border-t border-[#E9E9E7] pt-3">

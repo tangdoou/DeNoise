@@ -1,5 +1,10 @@
 import { classifyLearningTabCategory } from '../shared/constants';
-import { getAppSettings, getSessionState, updateSessionState } from '../shared/storage';
+import {
+  appendSessionTimelineEvent,
+  getAppSettings,
+  getSessionState,
+  updateSessionState
+} from '../shared/storage';
 import {
   BlackboxTabItem,
   ClassifiedLearningTab,
@@ -210,6 +215,18 @@ async function parkTabs(
       parkedGroupId: groupId,
       parkedTabIds: Array.from(new Set([...prev.parkedTabIds, ...tabIds]))
     }));
+    for (const entry of entries) {
+      await appendSessionTimelineEvent({
+        type: 'tab_parked',
+        label: entry.skeleton.title || entry.tab.title || '未命名页面',
+        detail: '移入 💤 暂存休息舱',
+        category: classifyLearningTabCategory(
+          entry.skeleton.url || entry.tab.url || '',
+          entry.skeleton.title || entry.tab.title || '',
+          buildSkeletonSnippet(entry.skeleton)
+        ).category
+      });
+    }
     return tabIds;
   } catch (err) {
     console.warn('[DeNoise] Failed to park tabs:', err);
@@ -252,6 +269,13 @@ async function closeTabs(
     }
   }));
   await Promise.allSettled(entries.map((entry) => chrome.tabs.remove(entry.tab.id as number)));
+  for (const item of blackboxItems) {
+    await appendSessionTimelineEvent({
+      type: 'noise_purified',
+      label: item.title,
+      detail: `关闭无关标签页 · ${item.reasonTag}`
+    });
+  }
 }
 
 function buildClassifiedLearningTab(
@@ -292,6 +316,12 @@ export async function upsertLearningTab(
       lastActiveLearningTabId: classified.tabId,
       learningTabs: [classified, ...filtered].slice(0, 30)
     };
+  });
+  await appendSessionTimelineEvent({
+    type: 'tab_learning',
+    label: classified.title,
+    detail: `${classified.categoryLabel} · ${classified.reasonTag}`,
+    category: classified.category
   });
   return classified;
 }
@@ -566,6 +596,11 @@ export async function parkSingleTabAndSwitch(targetTabId?: number): Promise<void
           : prev.stats.parkedOrClosedTabsCount + 1
       }
     };
+  });
+  await appendSessionTimelineEvent({
+    type: 'tab_parked',
+    label: tabToPark.title || tabToPark.url || '当前页面',
+    detail: '手动确认偏离，移入 💤 暂存休息舱'
   });
 }
 
