@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>高等数学与线性代数特征值精讲 - 混合推荐流演示靶场</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px 36px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+      background: #F7F7F5;
+      color: #191919;
+    }
+    header {
+      max-width: 1120px;
+      margin: 0 auto 24px;
+      padding: 20px 24px;
+      background: #FFFFFF;
+      border: 1px solid #E9E9E7;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+    header p {
+      margin: 0;
+      font-size: 13px;
+      color: #787774;
+    }
+    .layout {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 290px;
+      gap: 20px;
+    }
+    .feed-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .bili-video-card {
+      background: #FFFFFF;
+      border: 1px solid #E9E9E7;
+      border-radius: 10px;
+      padding: 16px;
+      min-height: 148px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .bili-video-card__tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #F1F1EF;
+      color: #787774;
+      margin-bottom: 8px;
+      width: fit-content;
+    }
+    .bili-video-card__info--tit {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.45;
+      margin: 0 0 8px;
+      color: #191919;
+      text-decoration: none;
+      display: block;
+    }
+    .bili-video-card__desc {
+      font-size: 12.5px;
+      color: #787774;
+      margin: 0;
+      line-height: 1.5;
+    }
+    aside.trending-search {
+      background: #FFFFFF;
+      border: 1px solid #E9E9E7;
+      border-radius: 10px;
+      padding: 16px;
+      height: fit-content;
+    }
+    aside.trending-search h3 {
+      margin: 0 0 12px;
+      font-size: 14px;
+    }
+    aside.trending-search ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12.5px;
+      color: #787774;
+      line-height: 1.9;
+    }
+    .toolbar-btn {
+      padding: 8px 14px;
+      background: #191919;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>线性代数特征值与矩阵对角化 · 学习社区混合信息流</h1>
+      <p>DeNoise 路演测试页：包含科研学习干货卡片与高诱惑娱乐推荐卡片，支持测试“先放后遮”动态毛玻璃与无限滚动加载。</p>
+    </div>
+    <button class="toolbar-btn" id="load-more-btn">+ 模拟滚动加载更多推荐卡片</button>
+  </header>
+
+  <div class="layout">
+    <main class="feed-grid" id="feed-container">
+      <article class="bili-video-card">
+        <div>
+          <span class="bili-video-card__tag">数学公开课</span>
+          <a class="bili-video-card__info--tit" href="#math-1">【MIT 18.06】Gilbert Strang 线性代数精讲：特征值、特征向量与矩阵相似对角化</a>
+          <p class="bili-video-card__desc">深入讲解 Ax = λx 的几何直观、特征多项式求解与实对称矩阵正交对角化推导。</p>
+        </div>
+      </article>
+
+      <article class="bili-video-card">
+        <div>
+          <span class="bili-video-card__tag">娱乐吃瓜</span>
+          <a class="bili-video-card__info--tit" href="#fun-1">笑不活了！内娱顶流明星红毯翻车名场面大盘点，网友神评论太敢说</a>
+          <p class="bili-video-card__desc">全程高能爆笑综艺八卦合集，一口气看完停不下来！</p>
+        </div>
+      </article>
+
+      <article class="bili-video-card">
+        <div>
+          <span class="bili-video-card__tag">考研高数</span>
+          <a class="bili-video-card__info--tit" href="#math-2">3Blue1Brown 线性代数的本质：基变换与特征向量的空间线性变换直观演示</a>
+          <p class="bili-video-card__desc">用可视化动画理解行列式、逆矩阵、秩、零空间与特征值分解。</p>
+        </div>
+      </article>
+
+      <article class="bili-video-card">
+        <div>
+          <span class="bili-video-card__tag">游戏直播</span>
+          <a class="bili-video-card__info--tit" href="#fun-2">原神新版本深渊满星抽卡暴死实录！主播破防连抽三百发结果震惊全场</a>
+          <p class="bili-video-card__desc">王者荣耀与英雄联盟总决赛精彩集锦，下饭操作合集。</p>
+        </div>
+      </article>
+
+      <article class="bili-video-card">
+        <div>
+          <span class="bili-video-card__tag">算法与代码</span>
+          <a class="bili-video-card__info--tit" href="#code-1">Python NumPy &amp; PyTorch 矩阵特征值分解 (PCA 主成分分析) 代码实现与显存优化</a>
+          <p class="bili-video-card__desc">结合 SVD 奇异值分解与特征值求解，手写机器学习降维核心算法。</p>
+        </div>
+      </article>
+
+      <article class="bili-video-card">
+        <div>
+          <span class="bili-video-card__tag">美食探店</span>
+          <a class="bili-video-card__info--tit" href="#fun-3">深夜放毒！500元挑战自助海鲜火锅实现榴莲自由，一口爆汁太治愈了</a>
+          <p class="bili-video-card__desc">周末网红奶茶甜品测评与穿搭Vlog日常分享。</p>
+        </div>
+      </article>
+    </main>
+
+    <aside class="trending-search" aria-label="全站热搜榜">
+      <h3>🔥 实时娱乐热搜榜（硬噪音模块）</h3>
+      <ul>
+        <li>1. 某明星恋情曝光引爆热搜</li>
+        <li>2. 年度爆笑沙雕合集更新</li>
+        <li>3. 双十一必买穿搭好物清单</li>
+        <li>4. 游戏新赛季皮肤限时返场</li>
+      </ul>
+    </aside>
+  </div>
+
+  <script>
+    const extraCards = [
+      {
+        tag: '考前串讲',
+        title: '高等数学多元微分学与雅可比矩阵、海森矩阵极值判定定理推导',
+        desc: '期末复习必看核心题型归纳与证明思路拆解。'
+      },
+      {
+        tag: '搞笑短视频',
+        title: '千万别在喝水时看这个视频！当代大学生宿舍整活搞笑大赏',
+        desc: '哈哈哈哈笑出腹肌，室友连夜扛着火车跑了。'
+      }
+    ];
+    document.getElementById('load-more-btn').addEventListener('click', () => {
+      const container = document.getElementById('feed-container');
+      extraCards.forEach((item) => {
+        const card = document.createElement('article');
+        card.className = 'bili-video-card';
+        card.innerHTML = `
+          <div>
+            <span class="bili-video-card__tag">${item.tag}</span>
+            <a class="bili-video-card__info--tit" href="#">${item.title}</a>
+            <p class="bili-video-card__desc">${item.desc}</p>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    });
+  </script>
+</body>
+</html>
