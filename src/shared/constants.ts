@@ -8,9 +8,7 @@ export const STORAGE_KEYS = {
   FOCUS_HISTORY: 'denoise_focus_history_v1'
 } as const;
 
-const BUILTIN_DEEPSEEK_KEY_PARTS = ['sk-ec46', '7fcdfe2b', '412dbfa0', '949cf8b4', 'ecf1'];
-
-export const BUILTIN_DEEPSEEK_API_KEY = BUILTIN_DEEPSEEK_KEY_PARTS.join('');
+export const BUILTIN_DEEPSEEK_API_KEY = import.meta.env.VITE_DENOISE_DEEPSEEK_KEY ?? '';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   providers: {
@@ -35,11 +33,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
     },
     openai: {
       id: 'openai',
-      name: 'OpenAI 官方 (GPT-5.4 系列)',
+      name: 'OpenAI 官方 (GPT-6 系列)',
       enabled: true,
       apiKey: '',
       baseUrl: 'https://api.openai.com/v1',
-      model: 'gpt-5.4-mini',
+      model: 'gpt-6-luna',
       supportsVision: true,
       apiFormat: 'openai'
     },
@@ -49,7 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       enabled: false,
       apiKey: '',
       baseUrl: 'https://api.anthropic.com/v1',
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-5-5',
       supportsVision: true,
       apiFormat: 'anthropic'
     },
@@ -59,7 +57,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       enabled: false,
       apiKey: '',
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-4-hydrogen',
       supportsVision: true,
       apiFormat: 'gemini'
     },
@@ -69,7 +67,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       enabled: false,
       apiKey: '',
       baseUrl: 'https://api.siliconflow.cn/v1',
-      model: 'deepseek-ai/DeepSeek-V3',
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
       supportsVision: true,
       apiFormat: 'openai'
     },
@@ -110,29 +108,15 @@ export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
     {
       id: 'deepseek-flash',
       label: 'DeepSeek-V4.1-Flash (deepseek-flash)',
-      badge: '默认主力 · 多模态极速',
-      description: '1M 超长上下文 + 原生图文多模态输入，关闭思考链后 ~850ms 极速响应',
+      badge: '默认主力 · 多模态',
+      description: '1M 超长上下文 + 原生图文输入，关闭思考链后进入亚秒级响应',
       supportsVision: true
     },
     {
       id: 'deepseek-v4-pro',
       label: 'DeepSeek-V4-Pro (deepseek-v4-pro)',
-      badge: '2026 最新旗舰',
-      description: 'DeepSeek V4 旗舰深度推理与复杂学术/代码判别模型',
-      supportsVision: false
-    },
-    {
-      id: 'deepseek-chat',
-      label: 'DeepSeek-V3.2 (deepseek-chat)',
-      badge: '经典通用',
-      description: '高性价比通用对话与中文网页意图提炼接口',
-      supportsVision: false
-    },
-    {
-      id: 'deepseek-reasoner',
-      label: 'DeepSeek-R1 (deepseek-reasoner)',
-      badge: '深度思考',
-      description: '开启完整思维链推理，适合高难度跨学科文献相关性复核',
+      badge: '旗舰 · 纯文本',
+      description: 'DeepSeek V4 旗舰推理，适合复杂学术/代码语义复核',
       supportsVision: false
     }
   ],
@@ -147,129 +131,115 @@ export const PROVIDER_MODEL_PRESETS: Record<ProviderId, ModelPreset[]> = {
   ],
   openai: [
     {
-      id: 'gpt-5.4-mini',
-      label: 'GPT-5.4 Mini',
-      badge: '推荐 · 高速多模态',
-      description: 'OpenAI 最新一代高速轻量多模态模型，兼顾响应速度与截图视觉复核',
+      id: 'gpt-6-luna',
+      label: 'GPT-6 Luna',
+      badge: '推荐 · 极速',
+      description: '官方价格最低、速度评级最快，适合批量网页判别',
       supportsVision: true
     },
     {
-      id: 'gpt-5.4',
-      label: 'GPT-5.4 Flagship',
-      badge: '2026 最新旗舰',
-      description: 'OpenAI 最新旗舰全能多模态模型，深层图文与代码上下文理解',
+      id: 'gpt-6.2-sol',
+      label: 'GPT-6.2 Sol',
+      badge: '主力 · 均衡',
+      description: '复杂任务下的均衡主力，兼顾成本与多模态理解',
       supportsVision: true
     },
     {
-      id: 'gpt-5.4-nano',
-      label: 'GPT-5.4 Nano',
-      badge: '超低延迟',
-      description: '超高吞吐、极低延迟的轻量实时判别模型',
+      id: 'gpt-6.2-astra',
+      label: 'GPT-6.2 Astra',
+      badge: '旗舰',
+      description: '最强推理与多模态能力，用于最难的灰区复核',
       supportsVision: true
     },
     {
-      id: 'gpt-5-mini',
-      label: 'GPT-5 Mini',
-      badge: '高吞吐多模态',
-      description: 'GPT-5 系列高性价比多模态判别与任务提炼模型',
-      supportsVision: true
-    },
-    {
-      id: 'gpt-4.1',
-      label: 'GPT-4.1',
-      badge: '稳定长上下文',
-      description: '强化指令遵循、代码工程与学术文献理解的多模态模型',
-      supportsVision: true
-    },
-    {
-      id: 'o4-mini',
-      label: 'o4-mini',
-      badge: '视觉推理',
-      description: 'OpenAI 高速多模态推理模型，擅长灰区网页截图深度研判',
+      id: 'gpt-6.1-terra',
+      label: 'GPT-6.1 Terra',
+      badge: '性价比',
+      description: '低成本均衡档，适合长时间常驻的批量判别',
       supportsVision: true
     }
   ],
   anthropic: [
     {
-      id: 'claude-sonnet-4-6',
-      label: 'Claude Sonnet 4.6',
-      badge: '推荐 · 旗舰均衡',
-      description: 'Anthropic 最新 Sonnet 4.6，极佳的学术代码理解与多模态截图复核能力',
+      id: 'claude-haiku-5-5',
+      label: 'Claude Haiku 5.5',
+      badge: '推荐 · 极速',
+      description: '高并发低延迟，适合分类、抽取与路由',
       supportsVision: true
     },
     {
-      id: 'claude-opus-4-6',
-      label: 'Claude Opus 4.6',
-      badge: '顶级推理',
-      description: 'Anthropic 最强旗舰 Opus 4.6，适合深度科研与高难度语义辨析',
+      id: 'claude-sonnet-5-5',
+      label: 'Claude Sonnet 5.5',
+      badge: '均衡',
+      description: '速度与智能兼顾，适合日常语义复核',
       supportsVision: true
     },
     {
-      id: 'claude-haiku-4-5',
-      label: 'Claude Haiku 4.5',
-      badge: '超低延迟',
-      description: 'Anthropic 最新高速轻量多模态模型，适合实时流式网页判别',
+      id: 'claude-opus-5-5',
+      label: 'Claude Opus 5.5',
+      badge: '默认主力',
+      description: '长链路编码与知识工作主力',
+      supportsVision: true
+    },
+    {
+      id: 'claude-fable-5-2',
+      label: 'Claude Fable 5.2',
+      badge: '旗舰',
+      description: '最强推理与长链路任务，用于最难的判定',
       supportsVision: true
     }
   ],
   gemini: [
     {
-      id: 'gemini-3-flash-preview',
-      label: 'Gemini 3 Flash',
-      badge: '推荐 · 极速多模态',
-      description: 'Google 最新一代 Gemini 3 高速多模态模型，原生视觉与超长上下文',
+      id: 'gemini-4-hydrogen',
+      label: 'Gemini 4 Hydrogen',
+      badge: '推荐 · 极速',
+      description: '速度与效率兼顾，最适合低延迟批量判别',
       supportsVision: true
     },
     {
-      id: 'gemini-3.1-pro-preview',
-      label: 'Gemini 3.1 Pro',
-      badge: '最新旗舰',
-      description: 'Google 2026 旗舰多模态与深度学术推理模型',
+      id: 'gemini-4-neon',
+      label: 'Gemini 4 Neon',
+      badge: '主力',
+      description: '前沿智能，端到端任务完成速度快',
       supportsVision: true
     },
     {
-      id: 'gemini-2.5-flash',
-      label: 'Gemini 2.5 Flash',
-      badge: '高吞吐稳定',
-      description: '兼顾极低延迟与多模态截图复核的成熟主力模型',
+      id: 'gemini-4-carbon',
+      label: 'Gemini 4 Carbon',
+      badge: '旗舰',
+      description: '最强推理与复杂工程，适合深度复核',
       supportsVision: true
     },
     {
-      id: 'gemini-2.5-pro',
-      label: 'Gemini 2.5 Pro',
-      badge: '深度科研',
-      description: '适合论文、代码库与复杂网页结构的深度复核',
+      id: 'gemini-4-argon',
+      label: 'Gemini 4 Argon',
+      badge: '高效推理',
+      description: '响应更快、单轮 token 消耗更低',
       supportsVision: true
     }
   ],
   custom: [
     {
-      id: 'deepseek-flash',
-      label: 'deepseek-flash (DeepSeek-V4.1-Flash)',
+      id: 'deepseek-ai/DeepSeek-V4-Flash',
+      label: 'deepseek-ai/DeepSeek-V4-Flash (硅基流动)',
       badge: '多模态极速',
-      description: 'DeepSeek V4.1 Flash 多模态高速模型',
+      description: '硅基流动托管的 DeepSeek V4 Flash',
       supportsVision: true
     },
     {
-      id: 'deepseek-ai/DeepSeek-V3',
-      label: 'deepseek-ai/DeepSeek-V3 (硅基流动)',
-      badge: 'SiliconFlow',
-      description: '硅基流动高速托管 DeepSeek 模型',
+      id: 'Pro/zai-org/GLM-5.2',
+      label: 'Pro/zai-org/GLM-5.2',
+      badge: '国产开源',
+      description: '智谱 GLM 系列，中文语义判别表现稳定',
       supportsVision: false
     },
     {
-      id: 'Qwen/Qwen3-VL-32B-Instruct',
-      label: 'Qwen/Qwen3-VL-32B-Instruct',
-      badge: '视觉多模态',
-      description: '通义千问最新视觉多模态指令模型',
-      supportsVision: true
-    },
-    {
-      id: 'gpt-5.4-mini',
-      label: 'gpt-5.4-mini (OpenRouter / 中转)',
-      badge: 'OpenAI 兼容',
-      description: '兼容各类 OneAPI / NewAPI / OpenRouter 聚合网关',
-      supportsVision: true
+      id: 'moonshotai/Kimi-K2.7-Code',
+      label: 'moonshotai/Kimi-K2.7-Code',
+      badge: '长上下文',
+      description: '适合代码与长文档语义复核',
+      supportsVision: false
     }
   ],
   ollama: [

@@ -1,4 +1,4 @@
-import { build } from 'vite';
+import { build, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve, dirname } from 'path';
@@ -7,12 +7,35 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
 
+const env = loadEnv('production', rootDir, '');
+const deepseekKey = env.VITE_DENOISE_DEEPSEEK_KEY ?? '';
+
+function toSecretExpression(value) {
+  if (!value) return "''";
+  const chunks = [];
+  for (let i = 0; i < value.length; i += 4) {
+    chunks.push(JSON.stringify(value.slice(i, i + 4)));
+  }
+  return `[${chunks.join(', ')}].join('')`;
+}
+
+const envDefine = {
+  'import.meta.env.VITE_DENOISE_DEEPSEEK_KEY': toSecretExpression(deepseekKey)
+};
+
+if (!deepseekKey) {
+  console.warn(
+    '⚠️  VITE_DENOISE_DEEPSEEK_KEY is not set. The built-in DeepSeek provider will have an empty API key.'
+  );
+}
+
 async function buildAll() {
   console.log('1/3 Building Popup & Options UI pages...');
   await build({
     root: rootDir,
     configFile: false,
     plugins: [react(), tailwindcss()],
+    define: envDefine,
     base: './',
     build: {
       outDir: 'dist',
@@ -31,6 +54,7 @@ async function buildAll() {
     root: rootDir,
     configFile: false,
     publicDir: false,
+    define: envDefine,
     build: {
       outDir: 'dist',
       emptyOutDir: false,
@@ -55,6 +79,7 @@ async function buildAll() {
     publicDir: false,
     plugins: [react()],
     define: {
+      ...envDefine,
       'process.env.NODE_ENV': JSON.stringify('production')
     },
     build: {

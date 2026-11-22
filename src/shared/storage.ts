@@ -55,12 +55,38 @@ export async function getAppSettings(): Promise<AppSettings> {
             supportsVision: DEFAULT_SETTINGS.providers.jev.supportsVision
           };
         }
-        if (mergedProviders.openai.model === 'gpt-4o-mini' || mergedProviders.openai.model === 'gpt-4o') {
-          mergedProviders.openai.model = DEFAULT_SETTINGS.providers.openai.model;
-          mergedProviders.openai.name = DEFAULT_SETTINGS.providers.openai.name;
-        }
-        if (mergedProviders.anthropic.model === 'claude-3-5-sonnet-latest') {
-          mergedProviders.anthropic.model = DEFAULT_SETTINGS.providers.anthropic.model;
+        // 只迁移我们历史上内置过的旧模型名，用户自己填的模型名一律不动
+        const LEGACY_MODEL_IDS: Partial<Record<ProviderId, string[]>> = {
+          openai: [
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4.1',
+            'gpt-5-mini',
+            'gpt-5.4',
+            'gpt-5.4-mini',
+            'gpt-5.4-nano',
+            'o4-mini'
+          ],
+          anthropic: [
+            'claude-3-5-sonnet-latest',
+            'claude-sonnet-4-6',
+            'claude-opus-4-6',
+            'claude-haiku-4-5'
+          ],
+          gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview'],
+          custom: ['deepseek-ai/DeepSeek-V3']
+        };
+        for (const [providerId, legacyIds] of Object.entries(LEGACY_MODEL_IDS) as Array<
+          [ProviderId, string[]]
+        >) {
+          const currentModel = mergedProviders[providerId].model;
+          if (!currentModel || legacyIds.includes(currentModel)) {
+            mergedProviders[providerId] = {
+              ...mergedProviders[providerId],
+              model: DEFAULT_SETTINGS.providers[providerId].model,
+              name: DEFAULT_SETTINGS.providers[providerId].name
+            };
+          }
         }
 
         const currentPrimary: ProviderId = stored.primaryFastProvider || 'deepseek';

@@ -23,7 +23,12 @@ import {
   STORAGE_KEYS,
   calculateSnrPercent
 } from '../shared/constants';
-import { getAppSettings, getSessionState } from '../shared/storage';
+import {
+  computeFocusPeriodSummary,
+  getAppSettings,
+  getFocusHistoryRecords,
+  getSessionState
+} from '../shared/storage';
 import {
   BlackboxTabItem,
   ExtensionMessage,
@@ -185,7 +190,11 @@ export const PopupApp: React.FC = () => {
       }
 
       const anyKeyReady = Object.values(settings.providers).some(
-        (provider) => provider.enabled && provider.apiKey.trim().length > 0
+        (provider) =>
+          provider.enabled &&
+          (provider.id === 'ollama'
+            ? provider.baseUrl.trim().length > 0
+            : provider.apiKey.trim().length > 0)
       );
       setHasConfiguredProvider(anyKeyReady);
 
@@ -209,7 +218,10 @@ export const PopupApp: React.FC = () => {
     const summary = response?.data?.summary;
     if (summary) {
       setFocusSummary(summary);
+      return;
     }
+    const records = await getFocusHistoryRecords();
+    setFocusSummary(computeFocusPeriodSummary(records));
   }, []);
 
   useEffect(() => {

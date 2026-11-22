@@ -149,14 +149,35 @@ export const DriftNudgeBar: React.FC<DriftNudgeBarProps> = ({
     const reportKey = `${session.sessionId}::${currentUrl}::${visibleMode}`;
     if (reportedKeyRef.current === reportKey) return;
     reportedKeyRef.current = reportKey;
-    void sendMessage({ type: 'REPORT_DRIFT_NUDGE_SHOWN' });
-  }, [visibleMode, session.sessionId, currentUrl]);
+    void sendMessage({
+      type: 'REPORT_DRIFT_NUDGE_SHOWN',
+      payload: {
+        title: document.title,
+        reasonTag: verdict?.reasonTag || '与专注任务无关'
+      }
+    });
+  }, [visibleMode, session.sessionId, currentUrl, verdict?.reasonTag]);
 
   if (!session.isActive || isWhitelisted || visibleMode === 'none' || dismissedUrl === currentUrl) {
     return null;
   }
 
   const detectedCategory = classifyLearningTabCategory(currentUrl, document.title || '');
+  const reportRecovery = (action: 'parked' | 'switch_learning') => {
+    return sendMessage({
+      type: 'REPORT_DRIFT_RECOVERED',
+      payload: {
+        title: document.title,
+        action
+      }
+    });
+  };
+  const handleConfirmPark = () => {
+    void reportRecovery('parked').finally(onParkAndSwitch);
+  };
+  const handleSwitchToLearning = () => {
+    void reportRecovery('switch_learning').finally(onSwitchToLearningTab);
+  };
 
   if (visibleMode === 'strict_card') {
     return (
@@ -187,14 +208,14 @@ export const DriftNudgeBar: React.FC<DriftNudgeBarProps> = ({
             <button
               type="button"
               className="dn-btn dn-btn-primary dn-btn-lg"
-              onClick={onParkAndSwitch}
+              onClick={handleConfirmPark}
             >
-              💤 确认偏离 · 归入休息舱并切回学习页
+              💤 确认偏离 · 收进无关标签组并切回
             </button>
             <button
               type="button"
               className="dn-btn dn-btn-secondary dn-btn-lg"
-              onClick={onSwitchToLearningTab}
+              onClick={handleSwitchToLearning}
             >
               ↩ 仅切回刚才的学习页
             </button>
@@ -230,15 +251,15 @@ export const DriftNudgeBar: React.FC<DriftNudgeBarProps> = ({
           <button
             type="button"
             className="dn-btn dn-btn-primary dn-btn-sm"
-            onClick={onParkAndSwitch}
-            title="将此分心标签页折叠进 💤 暂存休息舱，并立即切回学习标签页"
+            onClick={handleConfirmPark}
+            title="将此分心标签页收进无关标签组，并立即切回学习标签页"
           >
-            💤 归入休息舱并切回
+            💤 确认偏离 · 收进无关标签组并切回
           </button>
           <button
             type="button"
             className="dn-btn dn-btn-secondary dn-btn-sm"
-            onClick={onSwitchToLearningTab}
+            onClick={handleSwitchToLearning}
           >
             ↩ 切回学习页
           </button>

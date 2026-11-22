@@ -227,6 +227,11 @@ export type ExtensionMessage =
     }
   | {
       type: 'REPORT_DRIFT_NUDGE_SHOWN';
+      payload: { title: string; reasonTag: string };
+    }
+  | {
+      type: 'REPORT_DRIFT_RECOVERED';
+      payload: { title: string; action: 'parked' | 'switch_learning' };
     }
   | {
       type: 'WHITELIST_CURRENT_URL';

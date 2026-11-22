@@ -35,7 +35,9 @@ import {
 import { initScreenshotCache } from './screenshotCache';
 
 const MINUTELY_ALARM = 'denoise-minutely-tick';
+const NOISE_TIMELINE_THROTTLE_MS = 30_000;
 let initialized = false;
+const noiseTimelineLastReportedAt = new Map<string, number>();
 
 interface ExtensionResponse {
   ok: boolean;
@@ -49,6 +51,17 @@ function success(data?: unknown): ExtensionResponse {
 
 function failure(message: string): ExtensionResponse {
   return { ok: false, error: message };
+}
+
+function resolvePageLabel(title: string | undefined, url: string | undefined): string {
+  const trimmedTitle = (title ?? '').trim();
+  if (trimmedTitle) return trimmedTitle;
+  try {
+    if (url) return new URL(url).hostname;
+  } catch {
+    // Fall through to the raw URL or generic label.
+  }
+  return url || '当前页面';
 }
 
 function computeGrade(snr: number, driftNudges: number): string {
@@ -451,23 +464,52 @@ async function handleMessage(
       return success();
     }
     case 'REPORT_NOISE_WIDGET_REMOVED': {
-      const state = await updateSessionState((prev) => ({
+      await updateSessionState((prev) => ({
         ...prev,
         stats: {
           ...prev.stats,
           removedNoiseWidgetsCount: prev.stats.removedNoiseWidgetsCount + message.payload.count
         }
       }));
+      const pageKey = `${sender?.tab?.id ?? 'unknown'}::${sender?.tab?.url ?? ''}`;
+      const now = Date.now();
+      const lastReportedAt = noiseTimelineLastReportedAt.get(pageKey) ?? 0;
+      if (now - lastReportedAt >= NOISE_TIMELINE_THROTTLE_MS) {
+        noiseTimelineLastReportedAt.set(pageKey, now);
+        await appendSessionTimelineEvent({
+          type: 'noise_purified',
+          label: `净化推荐流 ${message.payload.count} 处`
+        });
+      }
+      const state = await getSessionState();
       return success(state);
     }
     case 'REPORT_DRIFT_NUDGE_SHOWN': {
-      const state = await updateSessionState((prev) => ({
+      await updateSessionState((prev) => ({
         ...prev,
         stats: {
           ...prev.stats,
           driftNudgesCount: prev.stats.driftNudgesCount + 1
         }
       }));
+      await appendSessionTimelineEvent({
+        type: 'drift_warned',
+        label: resolvePageLabel(message.payload.title, sender?.tab?.url),
+        detail: message.payload.reasonTag || '与专注任务无关'
+      });
+      const state = await getSessionState();
+      return success(state);
+    }
+    case 'REPORT_DRIFT_RECOVERED': {
+      await appendSessionTimelineEvent({
+        type: 'drift_recovered',
+        label: resolvePageLabel(message.payload.title, sender?.tab?.url),
+        detail:
+          message.payload.action === 'parked'
+            ? '确认偏离，收进无关标签组并切回学习页'
+            : '切回学习页'
+      });
+      const state = await getSessionState();
       return success(state);
     }
     case 'WHITELIST_CURRENT_URL': {

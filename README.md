@@ -6,18 +6,30 @@
 
 ## 1. 快速构建与加载到 Chrome
 
-本项目已编译输出至 [`dist/`](./dist) 目录，可直接在 Chrome 开发者模式下一键加载：
+`dist/` 是本地构建产物，**不提交到 Git 仓库**。首次使用请先配置本地 Key 并构建：
 
 ```bash
-# 类型检查与生产构建
+# 1. 安装依赖
+npm install
+
+# 2. 配置本地 Key（.env.local 已被 gitignore）
+cp .env.example .env.local
+# 编辑 .env.local，填入 VITE_DENOISE_DEEPSEEK_KEY
+
+# 3. 类型检查与生产构建
 npm run typecheck
 npm run build
 ```
+
+构建完成后，`dist/` 会包含可直接加载的扩展文件。完整步骤见
+[`docs/BUILD_AND_INSTALL.md`](./docs/BUILD_AND_INSTALL.md)。
 
 1. 打开 Chrome 浏览器，访问 `chrome://extensions/`
 2. 打开右上角 **开发者模式 (Developer mode)**
 3. 点击左上角 **加载已解压的扩展程序 (Load unpacked)**
 4. 选择本项目下的 **`dist`** 文件夹即可完成安装
+
+> 本地加载不需要开发者证书，也不需要上架 Chrome 应用商店。
 
 ---
 
