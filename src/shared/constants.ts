@@ -276,6 +276,7 @@ export const INITIAL_SESSION_STATE: FocusSessionState = {
   startTime: 0,
   durationMinutes: 25,
   endTime: 0,
+  learningGroupIds: {},
   parkedTabIds: [],
   sessionWhitelistUrls: [],
   blackboxTabs: [],

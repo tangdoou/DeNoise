@@ -11,6 +11,8 @@ export interface ReceiptExportData {
   blackboxCount: number;
   parkedCount: number;
   aiRetrospective?: FocusAiRetrospective;
+  snrPercentOverride?: number;
+  gradeOverride?: string;
 }
 
 const SANS_FONT =
@@ -398,8 +400,10 @@ export async function exportReceiptAsPng(data: ReceiptExportData): Promise<void>
   });
 
   const stats = data.stats;
-  const snrPercent = calculateSnrPercent(stats);
-  const purityGrade = computePurityGrade(snrPercent, stats.driftNudgesCount);
+  const snrPercent =
+    typeof data.snrPercentOverride === 'number' ? data.snrPercentOverride : calculateSnrPercent(stats);
+  const purityGrade =
+    data.gradeOverride || computePurityGrade(snrPercent, stats.driftNudgesCount);
 
   const heroTop = 188;
   const heroHeight = 108;

@@ -195,13 +195,21 @@ export async function appendSessionTimelineEvent(
 function buildSeededHistoryRecords(nowMs = Date.now()): FocusHistoryRecord[] {
   const DAY = 24 * 60 * 60 * 1000;
   const HOUR = 60 * 60 * 1000;
-  return [
+  const nowDate = new Date(nowMs);
+  const startOfToday = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate()
+  ).getTime();
+  const todayStart = Math.max(startOfToday + 20 * 60 * 1000, nowMs - 2.5 * HOUR);
+
+  const recent: FocusHistoryRecord[] = [
     {
       id: 'seed-today-1',
       taskIntent: '学习 DeepSeek Harness 与 SuperAgent 架构实操',
       intensity: 'standard',
-      startTime: nowMs - 2.5 * HOUR,
-      endTime: nowMs - 2.5 * HOUR + 35 * 60 * 1000,
+      startTime: todayStart,
+      endTime: todayStart + 35 * 60 * 1000,
       durationMinutes: 35,
       snrPercent: 98.4,
       grade: 'S',
@@ -215,8 +223,8 @@ function buildSeededHistoryRecords(nowMs = Date.now()): FocusHistoryRecord[] {
       id: 'seed-week-1',
       taskIntent: '刷 LeetCode 动态规划与图论专题',
       intensity: 'strict',
-      startTime: nowMs - 1 * DAY - 3 * HOUR,
-      endTime: nowMs - 1 * DAY - 2 * HOUR,
+      startTime: startOfToday - 1 * DAY + 15 * HOUR,
+      endTime: startOfToday - 1 * DAY + 15 * HOUR + 50 * 60 * 1000,
       durationMinutes: 50,
       snrPercent: 97.6,
       grade: 'S',
@@ -230,8 +238,8 @@ function buildSeededHistoryRecords(nowMs = Date.now()): FocusHistoryRecord[] {
       id: 'seed-week-2',
       taskIntent: '精读 arXiv 多模态 Agent 论文与实验复现',
       intensity: 'standard',
-      startTime: nowMs - 2 * DAY - 4 * HOUR,
-      endTime: nowMs - 2 * DAY - 3 * HOUR,
+      startTime: startOfToday - 2 * DAY + 14 * HOUR,
+      endTime: startOfToday - 2 * DAY + 15 * HOUR,
       durationMinutes: 60,
       snrPercent: 96.8,
       grade: 'S',
@@ -245,8 +253,8 @@ function buildSeededHistoryRecords(nowMs = Date.now()): FocusHistoryRecord[] {
       id: 'seed-week-3',
       taskIntent: '排查 PyTorch 显存溢出与训练脚本优化',
       intensity: 'standard',
-      startTime: nowMs - 3 * DAY - 2 * HOUR,
-      endTime: nowMs - 3 * DAY - 1 * HOUR,
+      startTime: startOfToday - 3 * DAY + 19 * HOUR,
+      endTime: startOfToday - 3 * DAY + 19 * HOUR + 45 * 60 * 1000,
       durationMinutes: 45,
       snrPercent: 95.9,
       grade: 'S',
@@ -255,47 +263,77 @@ function buildSeededHistoryRecords(nowMs = Date.now()): FocusHistoryRecord[] {
       driftCount: 0,
       aiBadge: '🛡️ 极客调优 · 纯净专注',
       aiSummary: '围绕报错检索 StackOverflow 与官方文档，未触发任何娱乐站点停留。'
-    },
-    {
-      id: 'seed-month-1',
-      taskIntent: '复习高等数学与线性代数特征值推导',
-      intensity: 'standard',
-      startTime: nowMs - 9 * DAY,
-      endTime: nowMs - 9 * DAY + 120 * 60 * 1000,
-      durationMinutes: 120,
-      snrPercent: 96.2,
-      grade: 'S',
-      blurredCount: 64,
-      parkedCount: 5,
-      driftCount: 1
-    },
-    {
-      id: 'seed-month-2',
-      taskIntent: '撰写计算机网络实验报告与抓包分析',
-      intensity: 'strict',
-      startTime: nowMs - 14 * DAY,
-      endTime: nowMs - 14 * DAY + 150 * 60 * 1000,
-      durationMinutes: 150,
-      snrPercent: 97.1,
-      grade: 'S',
-      blurredCount: 78,
-      parkedCount: 6,
-      driftCount: 1
-    },
-    {
-      id: 'seed-year-1',
-      taskIntent: '秋季学期核心专业课与科研项目冲刺累计',
-      intensity: 'standard',
-      startTime: nowMs - 45 * DAY,
-      endTime: nowMs - 45 * DAY + 1420 * 60 * 1000,
-      durationMinutes: 1420,
-      snrPercent: 96.5,
-      grade: 'S',
-      blurredCount: 520,
-      parkedCount: 38,
-      driftCount: 6
     }
   ];
+
+  const historicalArchive: Array<
+    [number, number, number, FocusHistoryRecord['intensity'], number, number, number, number, string]
+  > = [
+    [7, 15, 65, 'standard', 96.8, 33, 3, 1, '梳理 Zleap Zev-1 System-1 接口字段与概率映射'],
+    [8, 16, 70, 'strict', 97.4, 38, 3, 0, '实现浏览器插件 Shadow DOM 隔离与降噪卡片'],
+    [8, 20, 45, 'standard', 96.2, 21, 2, 1, '调试 MutationObserver 增量降噪防抖阈值'],
+    [9, 14, 110, 'standard', 96.4, 58, 5, 1, '复习高等数学与线性代数特征值推导'],
+    [10, 20, 40, 'gentle', 94.8, 19, 1, 1, '整理深北莫黑客松项目路演原型与竞品调研'],
+    [12, 15, 90, 'strict', 97.8, 47, 4, 0, '完成操作系统实验：模拟进程调度与页表置换'],
+    [14, 10, 95, 'strict', 97.1, 52, 4, 1, '撰写计算机网络实验报告与 Wireshark 抓包分析'],
+    [14, 19, 55, 'standard', 96.5, 26, 2, 0, '阅读 DeepSeek 多模态推理技术报告并整理笔记'],
+    [17, 14, 80, 'standard', 96.7, 44, 3, 0, '刷 LeetCode 二叉树与回溯算法高频题'],
+    [19, 21, 50, 'gentle', 95.3, 27, 2, 1, '重构 TypeScript 状态机与 MV3 Service Worker 通信'],
+    [21, 16, 105, 'strict', 98.1, 56, 4, 0, '推导概率论大数定律与贝叶斯估计习题'],
+    [24, 15, 70, 'standard', 96.0, 35, 3, 1, '学习 React 渲染优化与 Tailwind 响应式排版'],
+    [27, 10, 95, 'strict', 97.5, 51, 4, 1, '精读 Transformer Self-Attention 源码与注释'],
+    [30, 19, 50, 'standard', 95.8, 24, 2, 0, '调试 Chrome Tab Groups API 自动分组逻辑'],
+    [33, 14, 85, 'standard', 96.9, 43, 3, 1, '完成数据库 B+ 树索引与事务隔离级别实验'],
+    [36, 16, 115, 'strict', 98.2, 64, 5, 0, '刷算法周赛补题：单调栈与并查集专练'],
+    [40, 20, 60, 'gentle', 94.9, 21, 1, 1, '阅读 Chrome Extension MV3 安全沙箱规范'],
+    [43, 15, 90, 'standard', 96.6, 48, 4, 1, '撰写机器学习课程实验：SVM 与随机森林对比'],
+    [47, 14, 75, 'standard', 96.3, 37, 3, 0, '排查异步并发限流与 429 指数退避重试逻辑'],
+    [51, 19, 100, 'strict', 97.9, 55, 4, 1, '复习离散数学图论最短路径与最小生成树'],
+    [55, 16, 50, 'standard', 95.7, 26, 2, 1, '构建自动化评测基准脚本对比模型首字延迟'],
+    [61, 14, 80, 'standard', 96.5, 40, 3, 0, '阅读经典论文 Attention Is All You Need 原文'],
+    [67, 15, 65, 'gentle', 95.1, 29, 2, 1, '实现 Canvas 2x Retina 结算小票绘制与导出'],
+    [74, 19, 95, 'strict', 97.4, 49, 4, 1, '整理秋季学期专业课参考书单与知识图谱'],
+    [82, 14, 70, 'standard', 96.2, 33, 2, 0, 'C++ 智能指针与移动语义底层原理梳理'],
+    [95, 16, 85, 'standard', 96.8, 42, 3, 1, '复习计算机组成原理指令流水线与冒险处理'],
+    [110, 15, 60, 'gentle', 95.4, 25, 2, 1, '暑期算法训练营：动态规划状态压缩专题'],
+    [128, 14, 90, 'strict', 97.3, 46, 3, 0, 'Linux Socket 网络编程与 Epoll 事件模型练习'],
+    [146, 19, 55, 'standard', 95.9, 23, 2, 1, 'Python 异步协程 asyncio 与爬虫工程实践'],
+    [168, 15, 75, 'standard', 96.4, 36, 3, 0, '面向对象设计模式重构与单元测试编写'],
+    [189, 14, 80, 'strict', 97.0, 41, 3, 1, '数据结构期末总复习：红黑树与哈希冲突解决'],
+    [206, 16, 65, 'standard', 96.1, 30, 2, 0, '高等数学级数敛散性与傅里叶变换推导'],
+    [224, 15, 75, 'standard', 96.3, 35, 3, 1, '数字逻辑与 Verilog 时序仿真实验'],
+    [243, 19, 90, 'strict', 97.2, 44, 3, 0, '阅读 CUDA 并行归约与共享内存优化文档'],
+    [260, 14, 55, 'gentle', 95.2, 22, 2, 1, '线性代数矩阵奇异值分解 SVD 应用梳理'],
+    [281, 16, 85, 'standard', 96.7, 39, 3, 1, '计算机体系结构缓存一致性协议练习'],
+    [298, 20, 65, 'standard', 96.0, 29, 2, 0, 'Linux Shell 与自动化构建脚本实战'],
+    [318, 15, 95, 'strict', 97.6, 48, 4, 1, 'C++ 模板元编程与 STL 源码剖析'],
+    [336, 14, 70, 'standard', 96.4, 34, 2, 0, '微积分多元函数微分与梯度推导'],
+    [352, 19, 60, 'gentle', 95.5, 25, 2, 1, '构建第一版终端思维工具与技术方案草稿']
+  ];
+
+  const archived: FocusHistoryRecord[] = historicalArchive.map(
+    (
+      [daysAgo, hour, durationMinutes, intensity, snrPercent, blurredCount, parkedCount, driftCount, taskIntent],
+      idx
+    ) => {
+      const startTime = startOfToday - daysAgo * DAY + hour * HOUR;
+      return {
+        id: `seed-archive-${idx + 1}`,
+        taskIntent,
+        intensity,
+        startTime,
+        endTime: startTime + durationMinutes * 60 * 1000,
+        durationMinutes,
+        snrPercent,
+        grade: snrPercent >= 95 && driftCount <= 1 ? 'S' : snrPercent >= 93 ? 'A+' : 'A',
+        blurredCount,
+        parkedCount,
+        driftCount
+      };
+    }
+  );
+
+  return [...recent, ...archived];
 }
 
 export async function getFocusHistoryRecords(): Promise<FocusHistoryRecord[]> {
@@ -304,7 +342,18 @@ export async function getFocusHistoryRecords(): Promise<FocusHistoryRecord[]> {
       const res = await chrome.storage.local.get(STORAGE_KEYS.FOCUS_HISTORY);
       const stored = res[STORAGE_KEYS.FOCUS_HISTORY];
       if (Array.isArray(stored) && stored.length > 0) {
-        return stored as FocusHistoryRecord[];
+        const typed = stored as FocusHistoryRecord[];
+        const needsSeedUpgrade =
+          typed.some((item) => item.id === 'seed-year-1') ||
+          (typed.some((item) => item.id.startsWith('seed-')) &&
+            !typed.some((item) => item.id === 'seed-archive-40'));
+        if (needsSeedUpgrade) {
+          const realRecords = typed.filter((item) => !item.id.startsWith('seed-'));
+          const upgraded = [...realRecords, ...buildSeededHistoryRecords()];
+          await chrome.storage.local.set({ [STORAGE_KEYS.FOCUS_HISTORY]: upgraded });
+          return upgraded;
+        }
+        return typed;
       }
       const seeded = buildSeededHistoryRecords();
       await chrome.storage.local.set({ [STORAGE_KEYS.FOCUS_HISTORY]: seeded });
@@ -385,7 +434,20 @@ export function computeFocusPeriodSummary(
     Math.round((weekMinutes / weeklyTargetMinutes) * 100)
   );
   const rewardedProDays = Math.max(3, Math.floor(monthMinutes / 60) * 2);
-  const streakDays = Math.max(4, activeDayKeys.size);
+
+  const formatDayKey = (date: Date) =>
+    `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  let consecutiveStreak = 0;
+  const startOffset = activeDayKeys.has(formatDayKey(now)) ? 0 : 1;
+  for (let offset = startOffset; offset < 365; offset += 1) {
+    const cursor = new Date(startOfToday - offset * 24 * 60 * 60 * 1000);
+    if (activeDayKeys.has(formatDayKey(cursor))) {
+      consecutiveStreak += 1;
+    } else {
+      break;
+    }
+  }
+  const streakDays = records.length > 0 ? Math.max(1, consecutiveStreak) : 0;
 
   return {
     todayMinutes,

@@ -97,6 +97,13 @@ declare namespace chrome {
       title?: string;
       windowId: number;
     }
+    function get(groupId: number): Promise<TabGroup>;
+    function query(queryInfo: {
+      collapsed?: boolean;
+      color?: ColorEnum;
+      title?: string;
+      windowId?: number;
+    }): Promise<TabGroup[]>;
     function update(
       groupId: number,
       updateProperties: { collapsed?: boolean; color?: ColorEnum; title?: string }

@@ -1,4 +1,5 @@
 import { classifyLearningTabCategory } from '../shared/constants';
+import { CATEGORY_TAB_GROUP_META } from '../shared/domainRules';
 import {
   appendSessionTimelineEvent,
   getAppSettings,
@@ -9,6 +10,7 @@ import {
   BlackboxTabItem,
   ClassifiedLearningTab,
   FocusSessionState,
+  LearningTabCategory,
   TabDomSkeleton
 } from '../shared/types';
 import { judgeBatch } from './judgeEngine';
@@ -18,6 +20,13 @@ interface TabWithSkeleton {
   tab: chrome.tabs.Tab;
   skeleton: TabDomSkeleton;
 }
+
+const LEARNING_CATEGORY_ORDER: LearningTabCategory[] = [
+  'video_course',
+  'code_docs',
+  'search_qa',
+  'paper_notes'
+];
 
 interface ReviewOutcome {
   keep: boolean;
@@ -190,29 +199,163 @@ async function deepReview(
   };
 }
 
+async function filterExistingTabIds(tabIds: number[]): Promise<number[]> {
+  const checks = await Promise.all(
+    Array.from(new Set(tabIds)).map(async (tabId) => {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        return tab.id !== undefined ? tab.id : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return checks.filter((id): id is number => id !== null);
+}
+
+async function groupTabsWithMeta(options: {
+  tabIds: number[];
+  windowId?: number;
+  existingGroupId?: number;
+  title: string;
+  color: chrome.tabGroups.ColorEnum;
+  collapsed: boolean;
+}): Promise<number | undefined> {
+  const validTabIds = await filterExistingTabIds(options.tabIds);
+  if (validTabIds.length === 0) return options.existingGroupId;
+
+  let targetWindowId = options.windowId;
+  if (targetWindowId === undefined) {
+    try {
+      targetWindowId = (await chrome.tabs.get(validTabIds[0])).windowId;
+    } catch {
+      targetWindowId = undefined;
+    }
+  }
+
+  let resolvedGroupId: number | undefined;
+  const candidateIds: number[] = [];
+  if (options.existingGroupId !== undefined) {
+    candidateIds.push(options.existingGroupId);
+  }
+  if (targetWindowId !== undefined && chrome.tabGroups?.query) {
+    try {
+      const existingGroups = await chrome.tabGroups.query({
+        windowId: targetWindowId,
+        title: options.title
+      });
+      for (const group of existingGroups) {
+        if (!candidateIds.includes(group.id)) {
+          candidateIds.push(group.id);
+        }
+      }
+    } catch {
+      // Fall back to direct group creation.
+    }
+  }
+
+  for (const candidateId of candidateIds) {
+    try {
+      if (chrome.tabGroups?.get && targetWindowId !== undefined) {
+        const info = await chrome.tabGroups.get(candidateId);
+        if (info.windowId !== targetWindowId) continue;
+      }
+      resolvedGroupId = await chrome.tabs.group({
+        groupId: candidateId,
+        tabIds: validTabIds
+      });
+      break;
+    } catch {
+      resolvedGroupId = undefined;
+    }
+  }
+
+  if (resolvedGroupId === undefined) {
+    try {
+      resolvedGroupId = await chrome.tabs.group({
+        createProperties: targetWindowId !== undefined ? { windowId: targetWindowId } : undefined,
+        tabIds: validTabIds
+      });
+    } catch (err) {
+      console.warn(`[DeNoise] Failed to create Chrome tab group "${options.title}":`, err);
+      return undefined;
+    }
+  }
+
+  await chrome.tabGroups
+    .update(resolvedGroupId, {
+      title: options.title,
+      color: options.color,
+      collapsed: options.collapsed
+    })
+    .catch((err: unknown) => {
+      console.warn(`[DeNoise] Failed to update Chrome tab group "${options.title}":`, err);
+    });
+
+  return resolvedGroupId;
+}
+
+async function groupLearningTabsOnStart(
+  intensity: FocusSessionState['intensity'],
+  classifiedLearningList: ClassifiedLearningTab[],
+  windowId?: number
+): Promise<Partial<Record<LearningTabCategory, number>>> {
+  if (intensity === 'gentle' || classifiedLearningList.length === 0) {
+    return {};
+  }
+
+  const buckets = new Map<LearningTabCategory, number[]>();
+  for (const item of classifiedLearningList) {
+    const list = buckets.get(item.category) ?? [];
+    if (!list.includes(item.tabId)) {
+      list.push(item.tabId);
+      buckets.set(item.category, list);
+    }
+  }
+
+  const groupIds: Partial<Record<LearningTabCategory, number>> = {};
+  for (const category of LEARNING_CATEGORY_ORDER) {
+    const tabIds = buckets.get(category);
+    if (!tabIds || tabIds.length === 0) continue;
+    const meta = CATEGORY_TAB_GROUP_META[category];
+    const groupId = await groupTabsWithMeta({
+      tabIds,
+      windowId,
+      title: meta.title,
+      color: meta.color,
+      collapsed: false
+    });
+    if (groupId !== undefined) {
+      groupIds[category] = groupId;
+    }
+  }
+
+  return groupIds;
+}
+
 async function parkTabs(
   state: FocusSessionState,
-  entries: TabWithSkeleton[]
+  entries: TabWithSkeleton[],
+  canCollapse = true
 ): Promise<number[]> {
   if (entries.length === 0) return [];
   const tabIds = entries.map((entry) => entry.tab.id as number);
+  const windowId = entries[0]?.tab.windowId;
   try {
-    const groupId = await chrome.tabs.group({
-      createProperties: { windowId: entries[0].tab.windowId as number },
-      tabIds
-    });
-    await chrome.tabGroups.update(groupId, {
+    const groupId = await groupTabsWithMeta({
+      tabIds,
+      windowId,
+      existingGroupId: state.parkedGroupId,
       title: '💤 暂存休息舱',
       color: 'grey',
-      collapsed: true
+      collapsed: canCollapse
     });
     await Promise.allSettled(entries.map(async (entry) => {
-      if (entry.tab.active) return;
       await chrome.tabs.discard(entry.tab.id as number);
     }));
     await updateSessionState((prev) => ({
       ...prev,
-      parkedGroupId: groupId,
+      parkedGroupId: groupId ?? prev.parkedGroupId,
       parkedTabIds: Array.from(new Set([...prev.parkedTabIds, ...tabIds]))
     }));
     for (const entry of entries) {
@@ -301,20 +444,41 @@ function buildClassifiedLearningTab(
 }
 
 export async function upsertLearningTab(
-  tab: { id?: number; title?: string; url?: string; favIconUrl?: string },
+  tab: { id?: number; title?: string; url?: string; favIconUrl?: string; windowId?: number },
   relevanceScore = 88,
   reasonTag = '任务相关',
   snippet = ''
 ): Promise<ClassifiedLearningTab | null> {
   const classified = buildClassifiedLearningTab(tab, relevanceScore, reasonTag, snippet);
   if (!classified) return null;
+
+  let resolvedGroupId: number | undefined;
+  const current = await getSessionState();
+  if (current.isActive && current.intensity !== 'gentle') {
+    const meta = CATEGORY_TAB_GROUP_META[classified.category];
+    resolvedGroupId = await groupTabsWithMeta({
+      tabIds: [classified.tabId],
+      windowId: tab.windowId,
+      existingGroupId: current.learningGroupIds?.[classified.category],
+      title: meta.title,
+      color: meta.color,
+      collapsed: false
+    });
+  }
+
   await updateSessionState((prev) => {
     if (!prev.isActive) return prev;
     const filtered = (prev.learningTabs || []).filter((item) => item.tabId !== classified.tabId);
+    const nextGroupIds =
+      resolvedGroupId !== undefined
+        ? { ...(prev.learningGroupIds ?? {}), [classified.category]: resolvedGroupId }
+        : prev.learningGroupIds;
     return {
       ...prev,
       lastActiveLearningTabId: classified.tabId,
-      learningTabs: [classified, ...filtered].slice(0, 30)
+      learningTabs: [classified, ...filtered].slice(0, 30),
+      learningGroupIds: nextGroupIds,
+      parkedTabIds: (prev.parkedTabIds || []).filter((id) => id !== classified.tabId)
     };
   });
   await appendSessionTimelineEvent({
@@ -353,6 +517,8 @@ export async function governTabsOnSessionStart(
     !tab.pinned &&
     isManagedUrl(tab.url)
   );
+  const activeTabId = tabs.find((tab) => tab.active)?.id;
+  const targetWindowId = currentWindow.id ?? tabs[0]?.windowId;
   const managed: TabWithSkeleton[] = [];
   const classifiedLearningList: ClassifiedLearningTab[] = [];
   let whitelistLearningTabId: number | undefined;
@@ -371,9 +537,15 @@ export async function governTabsOnSessionStart(
 
   if (managed.length === 0) {
     if (classifiedLearningList.length > 0) {
+      const learningGroupIds = await groupLearningTabsOnStart(
+        state.intensity,
+        classifiedLearningList,
+        targetWindowId
+      );
       await updateSessionState((prev) => ({
         ...prev,
         learningTabs: classifiedLearningList,
+        learningGroupIds,
         lastActiveLearningTabId: whitelistLearningTabId ?? prev.lastActiveLearningTabId
       }));
     }
@@ -467,7 +639,26 @@ export async function governTabsOnSessionStart(
     }
   }
 
-  const parkedIds = await parkTabs(state, park);
+  const learningGroupIds = await groupLearningTabsOnStart(
+    state.intensity,
+    classifiedLearningList,
+    targetWindowId
+  );
+  const learningCandidate = whitelistLearningTabId ?? keep.at(-1)?.tab.id;
+  const activeTabWasMoved =
+    activeTabId !== undefined &&
+    (park.some((entry) => entry.tab.id === activeTabId) ||
+      close.some((entry) => entry.tab.id === activeTabId));
+
+  if (activeTabWasMoved && learningCandidate !== undefined) {
+    await chrome.tabs.update(learningCandidate, { active: true }).catch(() => undefined);
+  }
+
+  const canCollapseParkedGroup =
+    activeTabId === undefined ||
+    !park.some((entry) => entry.tab.id === activeTabId) ||
+    learningCandidate !== undefined;
+  const parkedIds = await parkTabs(state, park, canCollapseParkedGroup);
   if (parkedIds.length > 0) {
     await updateSessionState((prev) => ({
       ...prev,
@@ -488,10 +679,10 @@ export async function governTabsOnSessionStart(
   }
   await closeTabs(state, close, reviewOutcomes);
 
-  const learningCandidate = whitelistLearningTabId ?? keep.at(-1)?.tab.id;
   await updateSessionState((prev) => ({
     ...prev,
     learningTabs: classifiedLearningList,
+    learningGroupIds: { ...(prev.learningGroupIds ?? {}), ...learningGroupIds },
     lastActiveLearningTabId: learningCandidate ?? prev.lastActiveLearningTabId
   }));
 }
@@ -544,42 +735,14 @@ export async function parkSingleTabAndSwitch(targetTabId?: number): Promise<void
     await chrome.tabs.update(fallbackLearningId, { active: true }).catch(() => undefined);
   }
 
-  // Now fold parkId into existing or new 💤 暂存休息舱 tab group
-  let resolvedGroupId = state.parkedGroupId;
-  let groupedOk = false;
-  if (resolvedGroupId !== undefined) {
-    try {
-      resolvedGroupId = await chrome.tabs.group({
-        groupId: resolvedGroupId,
-        tabIds: [parkId]
-      });
-      groupedOk = true;
-    } catch {
-      groupedOk = false;
-    }
-  }
-  if (!groupedOk) {
-    try {
-      resolvedGroupId = await chrome.tabs.group({
-        createProperties:
-          tabToPark.windowId !== undefined ? { windowId: tabToPark.windowId } : undefined,
-        tabIds: [parkId]
-      });
-      groupedOk = true;
-    } catch (err) {
-      console.warn('[DeNoise] Failed to create parked group for single tab:', err);
-    }
-  }
-
-  if (groupedOk && resolvedGroupId !== undefined) {
-    await chrome.tabGroups
-      .update(resolvedGroupId, {
-        title: '💤 暂存休息舱',
-        color: 'grey',
-        collapsed: fallbackLearningId !== undefined
-      })
-      .catch(() => undefined);
-  }
+  const resolvedGroupId = await groupTabsWithMeta({
+    tabIds: [parkId],
+    windowId: tabToPark.windowId,
+    existingGroupId: state.parkedGroupId,
+    title: '💤 暂存休息舱',
+    color: 'grey',
+    collapsed: fallbackLearningId !== undefined
+  });
 
   await updateSessionState((prev) => {
     const alreadyParked = prev.parkedTabIds.includes(parkId);
@@ -619,9 +782,20 @@ export async function restoreBlackboxTab(blackboxItemId: string): Promise<void> 
 export async function restoreAllTabs(): Promise<void> {
   const current = await getSessionState();
   const parkedTabIds = [...current.parkedTabIds];
+  const learningTabIds = (current.learningTabs ?? []).map((item) => item.tabId);
+  const trackedGroupIds = new Set<number>();
+  if (current.parkedGroupId !== undefined) {
+    trackedGroupIds.add(current.parkedGroupId);
+  }
+  for (const gid of Object.values(current.learningGroupIds ?? {})) {
+    if (typeof gid === 'number') trackedGroupIds.add(gid);
+  }
+
   const blackboxTabs = [...current.blackboxTabs];
   await updateSessionState((prev) => ({
     ...prev,
+    parkedGroupId: undefined,
+    learningGroupIds: {},
     parkedTabIds: [],
     blackboxTabs: [],
     stats: {
@@ -630,10 +804,25 @@ export async function restoreAllTabs(): Promise<void> {
     }
   }));
 
-  if (parkedTabIds.length > 0) {
-    await chrome.tabs.ungroup(parkedTabIds).catch((err: unknown) => {
-      console.warn('[DeNoise] Failed to ungroup tabs:', err);
-    });
+  const allGroupedTabIds = new Set<number>([...parkedTabIds, ...learningTabIds]);
+  if (trackedGroupIds.size > 0) {
+    try {
+      const allTabs = await chrome.tabs.query({});
+      for (const tab of allTabs) {
+        if (tab.id !== undefined && tab.groupId !== undefined && trackedGroupIds.has(tab.groupId)) {
+          allGroupedTabIds.add(tab.id);
+        }
+      }
+    } catch {
+      // Fall back to explicitly tracked tab IDs.
+    }
+  }
+
+  if (allGroupedTabIds.size > 0) {
+    const validIds = await filterExistingTabIds(Array.from(allGroupedTabIds));
+    await Promise.allSettled(
+      validIds.map((tabId) => chrome.tabs.ungroup(tabId))
+    );
   }
   for (const item of blackboxTabs) {
     await chrome.tabs.create({ url: item.url, active: false }).catch((err: unknown) => {

@@ -148,6 +148,7 @@ export interface FocusSessionState {
   endTime: number;
   lastActiveLearningTabId?: number;
   parkedGroupId?: number;
+  learningGroupIds?: Partial<Record<LearningTabCategory, number>>;
   parkedTabIds: number[];
   sessionWhitelistUrls: string[];
   blackboxTabs: BlackboxTabItem[];

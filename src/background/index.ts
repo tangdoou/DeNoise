@@ -444,7 +444,8 @@ async function handleMessage(
             id: sender.tab.id,
             title: message.payload.title || sender.tab.title,
             url: message.payload.url || sender.tab.url,
-            favIconUrl: sender.tab.favIconUrl
+            favIconUrl: sender.tab.favIconUrl,
+            windowId: sender.tab.windowId
           },
           result.relevanceScore,
           result.reasonTag,
@@ -527,7 +528,8 @@ async function handleMessage(
             id: targetTab.id,
             title: targetTab.title,
             url: url || targetTab.url,
-            favIconUrl: targetTab.favIconUrl
+            favIconUrl: targetTab.favIconUrl,
+            windowId: targetTab.windowId
           },
           96,
           '手动标记资料'
@@ -562,7 +564,7 @@ async function handleMessage(
       const records = await getFocusHistoryRecords();
       return success({
         summary: computeFocusPeriodSummary(records),
-        records: records.slice(0, 20)
+        records
       });
     }
     case 'GENERATE_PERIOD_REVIEW': {

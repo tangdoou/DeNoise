@@ -35,7 +35,7 @@ VITE_DENOISE_DEEPSEEK_KEY=sk-your-deepseek-api-key-here
 - `.env.local` 已被 `.gitignore` 忽略，**不要提交到 Git**。
 - 真实 Key 只保存在本机 `.env.local`，构建时由 Vite 注入。
 - `.env.example` 只包含占位符，可以安全提交。
-- 如需使用 Zleap Zev-1，可同时填写 `ZLEAP_API_KEY`。
+- 如需使用 Zleap Zev-1，可同时填写 `VITE_DENOISE_ZLEAP_KEY`。
 
 ## 4. 构建扩展
 

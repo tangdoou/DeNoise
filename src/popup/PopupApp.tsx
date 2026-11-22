@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  BarChart3,
   BookmarkCheck,
   Check,
   ChevronDown,
@@ -302,6 +303,14 @@ export const PopupApp: React.FC = () => {
       chrome.runtime.openOptionsPage();
     } else {
       window.open('options.html', '_blank');
+    }
+  };
+
+  const openReviewPage = () => {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL && chrome.tabs?.create) {
+      void chrome.tabs.create({ url: chrome.runtime.getURL('options.html?tab=review') });
+    } else {
+      window.open('options.html?tab=review', '_blank');
     }
   };
 
@@ -672,7 +681,8 @@ export const PopupApp: React.FC = () => {
             </section>
 
             {((session.learningTabs && session.learningTabs.length > 0) ||
-              session.parkedTabIds.length > 0) && (
+              session.parkedTabIds.length > 0 ||
+              Object.keys(session.learningGroupIds ?? {}).length > 0) && (
               <section className="rounded-lg border border-[#E9E9E7] bg-[#F7F7F5] p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
@@ -685,7 +695,7 @@ export const PopupApp: React.FC = () => {
                   </div>
                   {(session.parkedTabIds.length > 0 ||
                     session.blackboxTabs.length > 0 ||
-                    (session.learningTabs && session.learningTabs.length > 0)) && (
+                    Object.keys(session.learningGroupIds ?? {}).length > 0) && (
                     <button
                       type="button"
                       disabled={isRestoringAll}
@@ -704,8 +714,8 @@ export const PopupApp: React.FC = () => {
                 </div>
 
                 {session.learningTabs && session.learningTabs.length > 0 && (
-                  <div className="mt-2 max-h-[112px] space-y-1 overflow-y-auto pr-0.5">
-                    {session.learningTabs.slice(0, 5).map((item) => (
+                  <div className="mt-2 max-h-[124px] space-y-1 overflow-y-auto pr-0.5">
+                    {session.learningTabs.map((item) => (
                       <button
                         key={item.tabId}
                         type="button"
@@ -1069,6 +1079,14 @@ export const PopupApp: React.FC = () => {
                     <span className="font-mono text-[10.5px] text-[#787774]">
                       连续 {focusSummary.streakDays} 天
                     </span>
+                    <button
+                      type="button"
+                      onClick={openReviewPage}
+                      className="inline-flex items-center gap-1 rounded border border-[#E9E9E7] bg-[#F7F7F5] px-1.5 py-0.5 text-[10px] font-medium text-[#191919] transition-colors hover:border-[#191919]"
+                    >
+                      <BarChart3 className="h-2.5 w-2.5 text-[#0F7B6C]" />
+                      <span>热力图</span>
+                    </button>
                     <button
                       type="button"
                       onClick={handleGeneratePeriodReview}

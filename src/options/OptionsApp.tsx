@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
+  BarChart3,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -19,15 +20,24 @@ import {
   Sliders,
   X
 } from 'lucide-react';
-import { DEFAULT_SETTINGS, PROVIDER_MODEL_PRESETS } from '../shared/constants';
-import { getAppSettings, saveAppSettings } from '../shared/storage';
+import { DEFAULT_SETTINGS, PROVIDER_MODEL_PRESETS, STORAGE_KEYS } from '../shared/constants';
+import {
+  computeFocusPeriodSummary,
+  getAppSettings,
+  getFocusHistoryRecords,
+  saveAppSettings
+} from '../shared/storage';
 import {
   AppSettings,
   ExtensionMessage,
+  FocusHistoryRecord,
+  FocusPeriodSummary,
   ModelPreset,
+  PeriodFocusReview,
   ProviderConfig,
   ProviderId
 } from '../shared/types';
+import { FocusReviewPanel } from './FocusReviewPanel';
 
 const PROVIDER_ORDER: ProviderId[] = [
   'deepseek',
@@ -230,9 +240,23 @@ export const OptionsApp: React.FC = () => {
 
   const [domainInput, setDomainInput] = useState<string>('');
   const [domainError, setDomainError] = useState<string>('');
+  const [activeView, setActiveView] = useState<'settings' | 'review'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'review' || window.location.hash === '#review') {
+        return 'review';
+      }
+    }
+    return 'settings';
+  });
   const [activeSection, setActiveSection] = useState<'routing' | 'providers' | 'whitelist'>(
     'routing'
   );
+  const [focusSummary, setFocusSummary] = useState<FocusPeriodSummary | null>(null);
+  const [focusRecords, setFocusRecords] = useState<FocusHistoryRecord[]>([]);
+  const [periodReview, setPeriodReview] = useState<PeriodFocusReview | null>(null);
+  const [isGeneratingReview, setIsGeneratingReview] = useState<boolean>(false);
+  const [reviewError, setReviewError] = useState<string>('');
 
   useEffect(() => {
     let mounted = true;
@@ -248,6 +272,72 @@ export const OptionsApp: React.FC = () => {
       mounted = false;
     };
   }, []);
+
+  const loadFocusReviewData = useCallback(async () => {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      try {
+        const res = (await chrome.runtime.sendMessage({ type: 'GET_FOCUS_STATS' })) as {
+          ok?: boolean;
+          data?: { summary?: FocusPeriodSummary; records?: FocusHistoryRecord[] };
+        };
+        if (res?.ok && res.data?.summary) {
+          setFocusSummary(res.data.summary);
+          setFocusRecords(res.data.records ?? []);
+          return;
+        }
+      } catch {
+        // Fall back to direct local storage reading.
+      }
+    }
+    const records = await getFocusHistoryRecords();
+    setFocusRecords(records);
+    setFocusSummary(computeFocusPeriodSummary(records));
+  }, []);
+
+  useEffect(() => {
+    void loadFocusReviewData();
+    if (typeof chrome === 'undefined' || !chrome.storage?.onChanged) {
+      return;
+    }
+    const handleStorageChange = (
+      changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
+      areaName: string
+    ) => {
+      if (areaName === 'local' && changes[STORAGE_KEYS.FOCUS_HISTORY]) {
+        void loadFocusReviewData();
+      }
+    };
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
+  }, [loadFocusReviewData]);
+
+  const handleGeneratePeriodReview = async () => {
+    if (isGeneratingReview) return;
+    setIsGeneratingReview(true);
+    setReviewError('');
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+        const res = (await chrome.runtime.sendMessage({ type: 'GENERATE_PERIOD_REVIEW' })) as {
+          ok?: boolean;
+          data?: { review?: PeriodFocusReview };
+          error?: string;
+        };
+        if (res?.ok && res.data?.review) {
+          setPeriodReview(res.data.review);
+          return;
+        }
+        setReviewError(res?.error || '生成 AI 复盘失败，请检查模型配置后重试');
+      } else {
+        setReviewError('请在 Chrome 扩展页面中触发 AI 复盘');
+      }
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : '生成 AI 复盘失败');
+    } finally {
+      setIsGeneratingReview(false);
+    }
+  };
 
   useEffect(() => {
     if (!openModelDrawer) {
@@ -531,9 +621,12 @@ export const OptionsApp: React.FC = () => {
   };
 
   const scrollToSection = (sectionId: 'routing' | 'providers' | 'whitelist') => {
+    setActiveView('settings');
     setActiveSection(sectionId);
-    const element = document.getElementById(`section-${sectionId}`);
-    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.requestAnimationFrame(() => {
+      const element = document.getElementById(`section-${sectionId}`);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const selectedFastProvider =
@@ -555,7 +648,7 @@ export const OptionsApp: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F7F7F5] text-[#191919] font-sans">
-      <div className="mx-auto flex max-w-[980px] flex-col gap-5 px-5 py-7 md:flex-row md:items-start md:px-8">
+      <div className="mx-auto flex max-w-[1040px] flex-col gap-5 px-5 py-7 md:flex-row md:items-start md:px-8">
         <aside className="w-full shrink-0 md:sticky md:top-7 md:w-[208px]">
           <div className="rounded-lg border border-[#E9E9E7] bg-white p-3.5">
             <div className="flex items-center gap-2.5">
@@ -587,9 +680,29 @@ export const OptionsApp: React.FC = () => {
             <nav className="mt-3.5 space-y-1 border-t border-[#E9E9E7] pt-3">
               <button
                 type="button"
+                onClick={() => setActiveView('review')}
+                className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors ${
+                  activeView === 'review'
+                    ? 'bg-[#EFEFED] text-[#191919]'
+                    : 'text-[#787774] hover:bg-[#F7F7F5] hover:text-[#191919]'
+                }`}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span>专注回顾</span>
+                </span>
+                <span className="rounded bg-[#0F7B6C]/10 px-1.5 py-0.2 font-mono text-[10px] text-[#0F7B6C]">
+                  热力图
+                </span>
+              </button>
+
+              <div className="my-1.5 border-t border-[#E9E9E7]" />
+
+              <button
+                type="button"
                 onClick={() => scrollToSection('routing')}
                 className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors ${
-                  activeSection === 'routing'
+                  activeView === 'settings' && activeSection === 'routing'
                     ? 'bg-[#EFEFED] text-[#191919]'
                     : 'text-[#787774] hover:bg-[#F7F7F5] hover:text-[#191919]'
                 }`}
@@ -602,7 +715,7 @@ export const OptionsApp: React.FC = () => {
                 type="button"
                 onClick={() => scrollToSection('providers')}
                 className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors ${
-                  activeSection === 'providers'
+                  activeView === 'settings' && activeSection === 'providers'
                     ? 'bg-[#EFEFED] text-[#191919]'
                     : 'text-[#787774] hover:bg-[#F7F7F5] hover:text-[#191919]'
                 }`}
@@ -615,7 +728,7 @@ export const OptionsApp: React.FC = () => {
                 type="button"
                 onClick={() => scrollToSection('whitelist')}
                 className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors ${
-                  activeSection === 'whitelist'
+                  activeView === 'settings' && activeSection === 'whitelist'
                     ? 'bg-[#EFEFED] text-[#191919]'
                     : 'text-[#787774] hover:bg-[#F7F7F5] hover:text-[#191919]'
                 }`}
@@ -640,6 +753,24 @@ export const OptionsApp: React.FC = () => {
         </aside>
 
         <main className="min-w-0 flex-1 space-y-5">
+          {activeView === 'review' ? (
+            focusSummary ? (
+              <FocusReviewPanel
+                summary={focusSummary}
+                records={focusRecords}
+                periodReview={periodReview}
+                isGeneratingReview={isGeneratingReview}
+                reviewError={reviewError}
+                onGenerateReview={() => void handleGeneratePeriodReview()}
+              />
+            ) : (
+              <div className="flex items-center justify-center rounded-lg border border-[#E9E9E7] bg-white py-16 text-[12.5px] text-[#787774]">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span>加载专注回顾数据...</span>
+              </div>
+            )
+          ) : (
+            <>
           <header className="sticky top-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E9E9E7] bg-white/95 px-5 py-3.5 backdrop-blur-sm">
             <h1 className="text-[16px] font-semibold tracking-tight text-[#191919]">
               引擎与降噪设置
@@ -1369,6 +1500,8 @@ export const OptionsApp: React.FC = () => {
               )}
             </div>
           </section>
+            </>
+          )}
         </main>
       </div>
     </div>
