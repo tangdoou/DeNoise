@@ -6,7 +6,17 @@
 
 ## 1. 界面预览
 
-> 注：实机动态演示 GIF 将在后续版本补充，当前先附上 `v1.1.0` 最新页面截图。
+**一句任务，开启主动降噪。** 输入当前学习目标后，DeNoise 把「降噪波形」熨平，并锁住本次专注。
+
+![输入任务并开启 ANC 主动降噪](./docs/media/demo-focus-start.gif)
+
+**网页级降噪：** 相关学习内容保留并打上 `🎯 任务相关`，娱乐推荐与热搜被实时虚化。
+
+![网页信息流降噪前后对比](./docs/media/demo-feed-denoise.gif)
+
+**真实站点实测（B 站搜索页）：** 42 个搜索结果卡片被实时打分，学习内容保留、无关内容虚化，右下角 SNR 与拦截计数同步更新。
+
+![在 B 站搜索页实时降噪](./docs/media/demo-bilibili-live.gif)
 
 | DeNoise 主动降噪舱（Popup） | 专注回顾与 53 周热力图（Options） |
 |:---:|:---:|
@@ -95,3 +105,20 @@ src/
 - [`docs/BUILD_AND_INSTALL.md`](./docs/BUILD_AND_INSTALL.md) — 构建、环境变量与本地安装说明
 - [`docs/USER_BEHAVIOR_MATRIX.md`](./docs/USER_BEHAVIOR_MATRIX.md) — 用户行为 × 产品响应 4 层矩阵
 - [`docs/ZLEAP_ZEV1_INTEGRATION.md`](./docs/ZLEAP_ZEV1_INTEGRATION.md) — Zleap Zev-1 System-1 接口接入与限流配置说明
+
+### 重新录制演示 GIF
+
+演示 GIF 由脚本自动录制，不依赖手工操作：
+
+```bash
+# 1) 需要登录态的真实站点，先从 Edge 导出 Cookie 到 /tmp
+./scripts/export-edge-cookies.py
+
+# 2) 录制（popup / feed / bilibili，可只跑单个场景）
+node scripts/record-demo.cjs feed
+
+# 3) webm 转 GIF
+./scripts/webm-to-gif.sh docs/media/raw/feed/<file>.webm docs/media/demo-feed-denoise.gif
+```
+
+录制必须使用 Microsoft Edge（`/Applications/Microsoft Edge.app`）。Playwright 自带的 Chromium 在扩展调用 `chrome.tabs.discard` 时会崩溃，这是浏览器构建的缺陷，与 DeNoise 无关。

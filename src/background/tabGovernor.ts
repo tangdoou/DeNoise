@@ -222,6 +222,69 @@ async function filterExistingTabIds(tabIds: number[]): Promise<number[]> {
   return checks.filter((id): id is number => id !== null);
 }
 
+/**
+ * Discarding is the only "sleep" primitive Chrome exposes, but it is also the
+ * most fragile one: discarding the tab the user is looking at (or the last
+ * remaining tab in a window) makes the browser tear the whole session down on
+ * some builds. Grouping is enough to signal intent, so we skip discard in those
+ * cases instead of risking the user's browser.
+ */
+async function safeDiscardTabs(tabIds: number[]): Promise<void> {
+  const uniqueIds = Array.from(new Set(tabIds));
+  if (uniqueIds.length === 0) return;
+
+  const activeTabIds = new Set<number>();
+  const tabsPerWindow = new Map<number, number>();
+  await Promise.all(
+    uniqueIds.map(async (tabId) => {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab.active) activeTabIds.add(tabId);
+        if (tab.windowId !== undefined) {
+          tabsPerWindow.set(tab.windowId, (tabsPerWindow.get(tab.windowId) ?? 0) + 1);
+        }
+      } catch {
+        activeTabIds.add(tabId);
+      }
+    })
+  );
+
+  const discardable = uniqueIds.filter((tabId) => !activeTabIds.has(tabId));
+  if (discardable.length === 0) return;
+
+  // Never sleep every tab of a window: keep at least one awake so the window
+  // still has a live tab to fall back to.
+  for (const [windowId, count] of tabsPerWindow) {
+    let windowTotal = count;
+    try {
+      windowTotal = (await chrome.tabs.query({ windowId })).length;
+    } catch {
+      windowTotal = count;
+    }
+    if (windowTotal <= 1) {
+      for (let i = discardable.length - 1; i >= 0; i -= 1) {
+        try {
+          if ((await chrome.tabs.get(discardable[i])).windowId === windowId) {
+            discardable.splice(i, 1);
+          }
+        } catch {
+          discardable.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  await Promise.allSettled(
+    discardable.map(async (tabId) => {
+      try {
+        await chrome.tabs.discard(tabId);
+      } catch (err) {
+        console.warn(`[DeNoise] Failed to discard tab ${tabId}:`, err);
+      }
+    })
+  );
+}
+
 async function groupTabsWithMeta(options: {
   tabIds: number[];
   windowId?: number;
@@ -359,9 +422,7 @@ async function parkTabs(
       color: 'grey',
       collapsed: canCollapse
     });
-    await Promise.allSettled(entries.map(async (entry) => {
-      await chrome.tabs.discard(entry.tab.id as number);
-    }));
+    await safeDiscardTabs(tabIds);
     await updateSessionState((prev) => ({
       ...prev,
       parkedGroupId: groupId ?? prev.parkedGroupId,
@@ -436,6 +497,7 @@ async function closeTabs(
   if (entries.length === 0) return;
   const blackboxItems: BlackboxTabItem[] = [];
   const deferredToPark: TabWithSkeleton[] = [];
+  const closableTabIds: number[] = [];
   for (const entry of entries) {
     if (!(await isPageSafeToClose(entry.tab.id as number))) {
       deferredToPark.push(entry);
@@ -443,6 +505,7 @@ async function closeTabs(
     }
     const review = results.get(entry.tab.id as number);
     const screenshot = await getTabScreenshot(entry.tab.id as number);
+    closableTabIds.push(entry.tab.id as number);
     blackboxItems.push({
       id: `blackbox-${state.sessionId}-${entry.tab.id}`,
       originalTabId: entry.tab.id as number,
@@ -470,7 +533,10 @@ async function closeTabs(
       parkedOrClosedTabsCount: prev.stats.parkedOrClosedTabsCount + blackboxItems.length
     }
   }));
-  await Promise.allSettled(entries.map((entry) => chrome.tabs.remove(entry.tab.id as number)));
+  // Only destroy the tabs that actually made it into the black box. Tabs that
+  // were deferred to the parked group still hold the user's unsaved state.
+  const removable = await filterExistingTabIds(closableTabIds);
+  await Promise.allSettled(removable.map((tabId) => chrome.tabs.remove(tabId)));
   for (const item of blackboxItems) {
     await appendSessionTimelineEvent({
       type: 'noise_purified',

@@ -3,212 +3,1891 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>高等数学与线性代数特征值精讲 - 混合推荐流演示靶场</title>
+  <meta name="description" content="DeNoise 离线演示靶场：复习高等数学与线性代数特征值的混合信息流。" />
+  <title>复习高等数学与线性代数特征值 · DeNoise 专注信息流</title>
   <style>
+    :root {
+      --bg: #F7F7F5;
+      --surface: #FFFFFF;
+      --line: #E9E9E7;
+      --ink: #191919;
+      --muted: #787774;
+      --soft: #A3A29E;
+      --green: #10B981;
+      --green-deep: #087F5B;
+      --green-soft: #EAFBF4;
+      --shadow: 0 1px 2px rgba(25, 25, 25, 0.035);
+      --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+    }
+
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      padding: 28px 36px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
-      background: #F7F7F5;
-      color: #191919;
+      min-width: 320px;
+      overflow-x: clip;
+      background:
+        radial-gradient(circle at 72% -10%, rgba(16, 185, 129, 0.055), transparent 34%),
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
-    header {
-      max-width: 1120px;
-      margin: 0 auto 24px;
-      padding: 20px 24px;
-      background: #FFFFFF;
-      border: 1px solid #E9E9E7;
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    svg { display: block; }
+    ::selection { background: rgba(16, 185, 129, 0.22); }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid rgba(233, 233, 231, 0.92);
+      background: rgba(247, 247, 245, 0.88);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+    }
+    .topbar__inner {
+      width: 100%;
+      max-width: 1400px;
+      height: 66px;
+      margin: 0 auto;
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      gap: 26px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex: none;
+    }
+    .brand-mark {
+      width: 31px;
+      height: 31px;
+      display: grid;
+      place-items: center;
       border-radius: 10px;
+      background: #191919;
+      box-shadow: 0 4px 12px rgba(25, 25, 25, 0.12);
+    }
+    .brand-mark svg { width: 19px; height: 19px; }
+    .brand-word {
+      font-size: 17px;
+      font-weight: 720;
+      letter-spacing: -0.035em;
+    }
+    .brand-badge {
+      padding: 3px 6px;
+      border: 1px solid #DADAD7;
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 8.5px;
+      font-weight: 650;
+      letter-spacing: 0.12em;
+      line-height: 1.2;
+    }
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border-radius: 8px;
+      color: #65645F;
+      font-size: 12.5px;
+      font-weight: 550;
+      white-space: nowrap;
+    }
+    .nav-link:hover { background: rgba(255, 255, 255, 0.72); color: var(--ink); }
+    .nav-link.is-active {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+    .nav-link.is-active::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+    .search-shell {
+      width: min(278px, 25vw);
+      height: 34px;
+      margin-left: auto;
+      padding: 0 10px 0 11px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--soft);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .search-shell:focus-within {
+      border-color: #BFDCD0;
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+    }
+    .search-shell svg { width: 14px; height: 14px; flex: none; }
+    .search-shell input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: 11.5px;
+    }
+    .search-shell input::placeholder { color: #AAA9A4; }
+    .search-shell kbd {
+      flex: none;
+      padding: 2px 5px;
+      border: 1px solid #E3E3E0;
+      border-radius: 4px;
+      background: #F4F4F2;
+      color: #A3A29E;
+      font-family: var(--font);
+      font-size: 9px;
+      line-height: 1.2;
+    }
+    .focus-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: none;
+      padding: 7px 10px;
+      border: 1px solid #D9EEE5;
+      border-radius: 9px;
+      background: #F3FCF8;
+      color: var(--green-deep);
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+    .focus-status__dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.11);
+      animation: breathe 2.4s ease-in-out infinite;
+    }
+    .focus-status strong {
+      font-size: 10.5px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.01em;
+    }
+    @keyframes breathe {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.09); }
+      50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.04); }
+    }
+
+    .page {
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 22px 32px 58px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 284px;
+      gap: 26px;
+      align-items: start;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 138px;
+      padding: 23px 26px 22px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background:
+        linear-gradient(112deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.91) 57%, rgba(240, 252, 247, 0.88) 100%),
+        var(--surface);
+      box-shadow: 0 1px 2px rgba(25, 25, 25, 0.025);
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: -105px;
+      right: 190px;
+      width: 330px;
+      height: 250px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.095), rgba(16, 185, 129, 0) 68%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: 20px;
+      right: 19px;
+      width: 72px;
+      height: 72px;
+      opacity: 0.3;
+      background-image: radial-gradient(circle, #10B981 1.1px, transparent 1.2px);
+      background-size: 8px 8px;
+      mask-image: linear-gradient(135deg, transparent 10%, #000 82%);
+      pointer-events: none;
+    }
+    .hero__copy { position: relative; z-index: 1; min-width: 0; }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 8px;
+      color: var(--green-deep);
+      font-size: 10.5px;
+      font-weight: 650;
+      letter-spacing: 0.045em;
+    }
+    .eyebrow__spark {
+      width: 14px;
+      height: 14px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--green-soft);
+    }
+    .eyebrow__spark svg { width: 9px; height: 9px; }
+    .hero h1 {
+      margin: 0 0 7px;
+      font-size: clamp(24px, 2.05vw, 30px);
+      font-weight: 720;
+      letter-spacing: -0.042em;
+      line-height: 1.18;
+    }
+    .hero p {
+      max-width: 650px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+    .hero__side {
+      position: relative;
+      z-index: 2;
+      flex: none;
+      width: 224px;
+      padding: 13px 14px 12px;
+      border: 1px solid rgba(214, 235, 226, 0.9);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 7px 22px rgba(25, 25, 25, 0.045);
+      backdrop-filter: blur(10px);
+    }
+    .task-line {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
     }
-    header h1 {
-      margin: 0 0 6px;
-      font-size: 20px;
-    }
-    header p {
-      margin: 0;
+    .task-line span:first-child { display: flex; align-items: center; gap: 5px; }
+    .task-line__leaf { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+    .task-name {
+      margin: 7px 0 10px;
       font-size: 13px;
-      color: #787774;
+      font-weight: 650;
+      line-height: 1.35;
     }
-    .layout {
-      max-width: 1120px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 290px;
-      gap: 20px;
+    .task-progress {
+      position: relative;
+      height: 4px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #EDF0ED;
     }
-    .feed-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
+    .task-progress::after {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 62%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #34D399, #10B981);
     }
-    .bili-video-card {
+    .task-progress__meta {
+      margin-top: 7px;
+      display: flex;
+      justify-content: space-between;
+      color: #989793;
+      font-size: 9.5px;
+    }
+    .load-btn {
+      appearance: none;
+      width: 100%;
+      margin-top: 10px;
+      padding: 8px 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid #D9D9D6;
+      border-radius: 8px;
       background: #FFFFFF;
-      border: 1px solid #E9E9E7;
-      border-radius: 10px;
-      padding: 16px;
-      min-height: 148px;
+      color: #3B3A37;
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+    .load-btn:hover { border-color: #B9DCCC; background: #F7FFFB; transform: translateY(-1px); }
+    .load-btn:active { transform: translateY(0); }
+    .load-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+    .load-btn svg { width: 11px; height: 11px; }
+
+    .feed-columns {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-top: 18px;
+    }
+    .feed-column {
+      flex: 1 1 0;
+      min-width: 0;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 16px;
     }
-    .bili-video-card__tag {
-      display: inline-block;
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: #F1F1EF;
-      color: #787774;
-      margin-bottom: 8px;
-      width: fit-content;
+
+    .feed-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
     }
-    .bili-video-card__info--tit {
-      font-size: 15px;
+    .feed-card:hover {
+      transform: translateY(-2px);
+      border-color: #DEDEDA;
+      box-shadow: 0 14px 30px rgba(25, 25, 25, 0.075);
+    }
+    .cover-link { display: block; }
+    .cover {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      background: #E8E8E4;
+    }
+    .cover--video { aspect-ratio: 16 / 9; }
+    .cover--note { aspect-ratio: 3 / 4; }
+    .cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.38) 100%);
+      pointer-events: none;
+    }
+    .cover > svg {
+      width: 100%;
+      height: 100%;
+      transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    .feed-card:hover .cover > svg { transform: scale(1.025); }
+    .cover-tag {
+      position: absolute;
+      top: 9px;
+      left: 9px;
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.88);
+      color: #2B2A27;
+      font-size: 9.5px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      backdrop-filter: blur(8px);
+    }
+    .cover-tag--fun { background: rgba(255, 244, 239, 0.92); color: #9A3412; }
+    .cover-stat, .cover-duration {
+      position: absolute;
+      bottom: 8px;
+      z-index: 4;
+      color: #FFFFFF;
+      font-size: 10.5px;
       font-weight: 600;
-      line-height: 1.45;
-      margin: 0 0 8px;
-      color: #191919;
-      text-decoration: none;
-      display: block;
+      line-height: 1.2;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+      font-variant-numeric: tabular-nums;
     }
-    .bili-video-card__desc {
-      font-size: 12.5px;
+    .cover-stat {
+      left: 9px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .cover-stat svg { width: 10px; height: 10px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.24)); }
+    .cover-duration {
+      right: 8px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(14, 14, 14, 0.72);
+      text-shadow: none;
+      letter-spacing: 0.02em;
+      backdrop-filter: blur(4px);
+    }
+    .cover-topic {
+      position: absolute;
+      right: 9px;
+      top: 9px;
+      z-index: 4;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(10, 10, 10, 0.34);
+      color: rgba(255, 255, 255, 0.94);
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      backdrop-filter: blur(4px);
+    }
+
+    .card-body { padding: 10px 12px 12px; }
+    .card-title {
+      margin: 0 0 9px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 640;
+      line-height: 1.45;
+      letter-spacing: -0.012em;
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .card-title a { transition: color 0.16s ease; }
+    .card-title a:hover { color: var(--green-deep); }
+    .card-desc {
+      margin: -3px 0 9px;
+      color: #85847F;
+      font-size: 10.5px;
+      line-height: 1.55;
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      color: #8A8984;
+      font-size: 10.5px;
+      line-height: 1.2;
+    }
+    .avatar {
+      position: relative;
+      width: 19px;
+      height: 19px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.55), transparent 34%),
+        linear-gradient(135deg, var(--av1, #0F766E), var(--av2, #34D399));
+      color: #FFFFFF;
+      font-size: 7.5px;
+      font-weight: 750;
+      letter-spacing: -0.02em;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32), 0 1px 2px rgba(25, 25, 25, 0.1);
+    }
+    .avatar::after {
+      content: "";
+      position: absolute;
+      right: -5px;
+      bottom: -6px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .avatar span { position: relative; z-index: 1; }
+    .author {
+      min-width: 0;
+      overflow: hidden;
+      color: #6F6E69;
+      font-weight: 540;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .meta-dot { color: #C6C5C0; flex: none; }
+    .meta-time { flex: none; color: #A3A29E; }
+    .card-foot {
+      margin-top: 9px;
+      padding-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-top: 1px solid #F1F1EF;
+      color: #999893;
+      font-size: 9.5px;
+    }
+    .card-foot__tag {
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #F5F5F3;
       color: #787774;
-      margin: 0;
+      font-weight: 550;
+    }
+    .card-foot__hint { display: inline-flex; align-items: center; gap: 4px; }
+    .card-foot__hint svg { width: 10px; height: 10px; }
+
+    .feed-footer {
+      margin-top: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .feed-footer .load-btn {
+      width: auto;
+      min-width: 178px;
+      margin-top: 0;
+      padding: 10px 18px;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+    }
+    .feed-footer__note { color: #AAA9A4; font-size: 9.5px; letter-spacing: 0.02em; }
+
+    .sidebar { position: sticky; top: 88px; }
+    .trending-panel {
+      padding: 17px 17px 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 680;
+      letter-spacing: -0.015em;
+    }
+    .panel-title svg { width: 14px; height: 14px; color: #F05A3C; }
+    .panel-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #A3A29E;
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+    .panel-live::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: #F05A3C; }
+    .hot-list { margin: 0; padding: 0; list-style: none; }
+    .hot-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 8px 0;
+      border-bottom: 1px dashed #F0F0EE;
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+    .hot-item:last-child { border-bottom: 0; }
+    .hot-rank {
+      width: 14px;
+      flex: none;
+      padding-top: 1px;
+      color: #B2B1AC;
+      font-size: 10.5px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .hot-item:nth-child(1) .hot-rank { color: #F05A3C; }
+    .hot-item:nth-child(2) .hot-rank { color: #F08A3C; }
+    .hot-item:nth-child(3) .hot-rank { color: #D7A629; }
+    .hot-text { flex: 1; min-width: 0; color: #474641; }
+    .hot-heat {
+      flex: none;
+      padding-top: 1px;
+      color: #B3B2AD;
+      font-size: 9px;
+      font-variant-numeric: tabular-nums;
+    }
+    .hot-flag {
+      display: inline-block;
+      margin-left: 3px;
+      padding: 0 3px;
+      border-radius: 3px;
+      background: #FFF0EB;
+      color: #E45538;
+      font-size: 7.5px;
+      font-weight: 700;
+      vertical-align: 1px;
+    }
+    .quiet-note {
+      margin-top: 10px;
+      padding: 11px 12px;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      border: 1px solid #E4F3EC;
+      border-radius: 10px;
+      background: #F6FCF9;
+    }
+    .quiet-note__icon {
+      width: 22px;
+      height: 22px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #E6F8F0;
+      color: var(--green-deep);
+    }
+    .quiet-note__icon svg { width: 12px; height: 12px; }
+    .quiet-note p { margin: 0; color: #6C7E76; font-size: 9.5px; line-height: 1.55; }
+    .quiet-note strong { display: block; margin-bottom: 1px; color: #3C5B4E; font-size: 10px; font-weight: 650; }
+    .side-footer {
+      padding: 13px 4px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 10px;
+      color: #B0AFA9;
+      font-size: 8.5px;
       line-height: 1.5;
     }
-    aside.trending-search {
-      background: #FFFFFF;
-      border: 1px solid #E9E9E7;
-      border-radius: 10px;
-      padding: 16px;
-      height: fit-content;
-    }
-    aside.trending-search h3 {
-      margin: 0 0 12px;
-      font-size: 14px;
-    }
-    aside.trending-search ul {
-      margin: 0;
-      padding-left: 18px;
-      font-size: 12.5px;
-      color: #787774;
-      line-height: 1.9;
-    }
-    .toolbar-btn {
-      padding: 8px 14px;
-      background: #191919;
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 26px;
+      z-index: 80;
+      padding: 9px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(25, 25, 25, 0.9);
       color: #FFFFFF;
-      border: none;
-      border-radius: 6px;
-      font-size: 12.5px;
-      font-weight: 500;
-      cursor: pointer;
+      font-size: 11px;
+      box-shadow: 0 8px 24px rgba(25, 25, 25, 0.18);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      backdrop-filter: blur(8px);
+    }
+    .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .sidebar { display: none; }
+      .main-nav { display: none; }
+    }
+    @media (max-width: 900px) {
+      .topbar__inner { padding: 0 20px; gap: 16px; }
+      .page { padding: 18px 20px 48px; }
+      .search-shell { width: min(260px, 34vw); }
+      .hero { padding: 20px; }
+      .hero__side { width: 200px; }
+      .feed-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .feed-column { display: contents; }
+    }
+    @media (max-width: 680px) {
+      .topbar__inner { height: 60px; padding: 0 16px; }
+      .brand-badge, .search-shell, .focus-status { display: none; }
+      .page { padding: 14px 14px 42px; }
+      .hero { flex-direction: column; align-items: stretch; gap: 16px; border-radius: 15px; }
+      .hero h1 { font-size: 23px; }
+      .hero__side { width: 100%; }
+      .feed-columns { display: flex; flex-direction: column; gap: 14px; }
+      .feed-column { display: flex; gap: 14px; }
+      .feed-card { border-radius: 13px; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>线性代数特征值与矩阵对角化 · 学习社区混合信息流</h1>
-      <p>DeNoise 路演测试页：包含科研学习干货卡片与高诱惑娱乐推荐卡片，支持测试“先放后遮”动态毛玻璃与无限滚动加载。</p>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="#top" aria-label="DeNoise 首页">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 2.75 20 6v5.3c0 4.7-3.15 8.45-8 10-4.85-1.55-8-5.3-8-10V6l8-3.25Z" fill="#10B981"/>
+            <path d="m8.2 11.9 2.45 2.45 5.2-5.2" stroke="#071B16" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="brand-word">DeNoise</span>
+        <span class="brand-badge">FOCUS FEED</span>
+      </a>
+
+      <nav class="main-nav" aria-label="主导航">
+        <a class="nav-link is-active" href="#top">推荐</a>
+        <a class="nav-link" href="#feed">学习</a>
+        <a class="nav-link" href="#feed">代码</a>
+        <a class="nav-link" href="#feed">收藏</a>
+      </nav>
+
+      <label class="search-shell" aria-label="搜索内容">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="8.8" cy="8.8" r="5.3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="m12.7 12.7 3.2 3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input type="search" placeholder="搜索：特征值 / PCA / 对角化" aria-label="搜索特征值、PCA 或对角化" />
+        <kbd>⌘ K</kbd>
+      </label>
+
+      <div class="focus-status" aria-label="专注计时">
+        <span class="focus-status__dot" aria-hidden="true"></span>
+        <span>专注中</span>
+        <strong id="focus-timer">25:00</strong>
+      </div>
     </div>
-    <button class="toolbar-btn" id="load-more-btn">+ 模拟滚动加载更多推荐卡片</button>
   </header>
 
-  <div class="layout">
-    <main class="feed-grid" id="feed-container">
-      <article class="bili-video-card">
-        <div>
-          <span class="bili-video-card__tag">数学公开课</span>
-          <a class="bili-video-card__info--tit" href="#math-1">【MIT 18.06】Gilbert Strang 线性代数精讲：特征值、特征向量与矩阵相似对角化</a>
-          <p class="bili-video-card__desc">深入讲解 Ax = λx 的几何直观、特征多项式求解与实对称矩阵正交对角化推导。</p>
-        </div>
-      </article>
+  <div class="page" id="top">
+    <div class="layout">
+      <main>
+        <section class="hero" aria-labelledby="feed-title">
+          <div class="hero__copy">
+            <div class="eyebrow">
+              <span class="eyebrow__spark" aria-hidden="true">
+                <svg viewBox="0 0 12 12" fill="none">
+                  <path d="m6 1.5.9 2.6L9.5 5l-2.6.9L6 8.5l-.9-2.6L2.5 5l2.6-.9L6 1.5Z" fill="#10B981"/>
+                </svg>
+              </span>
+              为你精选 · 基于当前专注任务
+            </div>
+            <h1 id="feed-title">复习高等数学与线性代数特征值</h1>
+            <p>把公开课、讲义和代码笔记拼成一条学习流；无关的热闹，先放在一边。</p>
+          </div>
 
-      <article class="bili-video-card">
-        <div>
-          <span class="bili-video-card__tag">娱乐吃瓜</span>
-          <a class="bili-video-card__info--tit" href="#fun-1">笑不活了！内娱顶流明星红毯翻车名场面大盘点，网友神评论太敢说</a>
-          <p class="bili-video-card__desc">全程高能爆笑综艺八卦合集，一口气看完停不下来！</p>
-        </div>
-      </article>
+          <div class="hero__side">
+            <div class="task-line">
+              <span><span class="task-line__leaf"></span>本轮任务</span>
+              <span>已进行 18 min</span>
+            </div>
+            <div class="task-name">特征值 · 矩阵对角化 · PCA</div>
+            <div class="task-progress" aria-hidden="true"></div>
+            <div class="task-progress__meta">
+              <span>今日学习流</span>
+              <span><strong id="feed-count">16</strong> 条内容</span>
+            </div>
+            <button class="load-btn" type="button" data-load-more>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 3.2v9.6M3.2 8h9.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              加载更多推荐
+            </button>
+          </div>
+        </section>
 
-      <article class="bili-video-card">
-        <div>
-          <span class="bili-video-card__tag">考研高数</span>
-          <a class="bili-video-card__info--tit" href="#math-2">3Blue1Brown 线性代数的本质：基变换与特征向量的空间线性变换直观演示</a>
-          <p class="bili-video-card__desc">用可视化动画理解行列式、逆矩阵、秩、零空间与特征值分解。</p>
-        </div>
-      </article>
+        <section id="feed" aria-label="推荐内容流">
+          <div class="feed-columns" id="feed-container"></div>
+          <div class="feed-footer">
+            <button class="load-btn" type="button" data-load-more>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 3.2v9.6M3.2 8h9.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              继续加载 4 条
+            </button>
+            <span class="feed-footer__note">本地离线靶场 · 封面与头像均由内联 SVG 生成</span>
+          </div>
+        </section>
+      </main>
 
-      <article class="bili-video-card">
-        <div>
-          <span class="bili-video-card__tag">游戏直播</span>
-          <a class="bili-video-card__info--tit" href="#fun-2">原神新版本深渊满星抽卡暴死实录！主播破防连抽三百发结果震惊全场</a>
-          <p class="bili-video-card__desc">王者荣耀与英雄联盟总决赛精彩集锦，下饭操作合集。</p>
+      <aside class="trending-panel" aria-label="全站实时热搜榜">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10.7 2.4c.5 2.2-.6 3.4-1.7 4.7-1.1 1.4-2.1 2.8-1.6 5 .9-.7 1.3-1.6 1.4-2.8 2.1 1.3 3.5 3.1 3.5 5.4 0 1.8-1.3 3-2.9 3.2 4.1-.2 6.4-2.8 6.4-6.2 0-3.8-2.3-7.1-5.1-9.3Z" fill="currentColor"/>
+              <path d="M8.5 18c-2.4-.5-3.9-2.1-3.9-4.3 0-1.7.8-3.2 1.8-4.6.2 1 .6 1.7 1.3 2.2-.2-2.7 1.3-4.4 2.5-5.7.5 2.6 2.8 4.4 2.8 7.3 0 2.6-1.7 4.5-4.5 5.1Z" fill="currentColor" opacity=".34"/>
+            </svg>
+            实时热搜
+          </div>
+          <span class="panel-live">LIVE</span>
         </div>
-      </article>
-
-      <article class="bili-video-card">
-        <div>
-          <span class="bili-video-card__tag">算法与代码</span>
-          <a class="bili-video-card__info--tit" href="#code-1">Python NumPy &amp; PyTorch 矩阵特征值分解 (PCA 主成分分析) 代码实现与显存优化</a>
-          <p class="bili-video-card__desc">结合 SVD 奇异值分解与特征值求解，手写机器学习降维核心算法。</p>
+        <ol class="hot-list">
+          <li class="hot-item"><span class="hot-rank">1</span><span class="hot-text">某顶流恋情曝光<span class="hot-flag">爆</span></span><span class="hot-heat">328.6万</span></li>
+          <li class="hot-item"><span class="hot-rank">2</span><span class="hot-text">年度红毯造型翻车合集</span><span class="hot-heat">217.4万</span></li>
+          <li class="hot-item"><span class="hot-rank">3</span><span class="hot-text">新赛季限定皮肤返场</span><span class="hot-heat">184.1万</span></li>
+          <li class="hot-item"><span class="hot-rank">4</span><span class="hot-text">人均 80 的潮汕牛肉火锅</span><span class="hot-heat">156.8万</span></li>
+          <li class="hot-item"><span class="hot-rank">5</span><span class="hot-text">秋冬大衣三种氛围感穿法</span><span class="hot-heat">121.3万</span></li>
+          <li class="hot-item"><span class="hot-rank">6</span><span class="hot-text">大学生宿舍整活名场面</span><span class="hot-heat">98.2万</span></li>
+          <li class="hot-item"><span class="hot-rank">7</span><span class="hot-text">考研倒计时 30 天</span><span class="hot-heat">86.5万</span></li>
+          <li class="hot-item"><span class="hot-rank">8</span><span class="hot-text">深夜放毒美食测评</span><span class="hot-heat">73.9万</span></li>
+        </ol>
+        <div class="quiet-note">
+          <span class="quiet-note__icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M8 1.9 13.4 4v3.7c0 3.2-2.2 5.9-5.4 7-3.2-1.1-5.4-3.8-5.4-7V4L8 1.9Z" stroke="currentColor" stroke-width="1.25"/>
+              <path d="m5.7 7.8 1.5 1.5 3.1-3.1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <p><strong>专注时，这块区域会被收起</strong>热搜属于硬噪音，DeNoise 会直接净化，不参与内容打分。</p>
         </div>
-      </article>
-
-      <article class="bili-video-card">
-        <div>
-          <span class="bili-video-card__tag">美食探店</span>
-          <a class="bili-video-card__info--tit" href="#fun-3">深夜放毒！500元挑战自助海鲜火锅实现榴莲自由，一口爆汁太治愈了</a>
-          <p class="bili-video-card__desc">周末网红奶茶甜品测评与穿搭Vlog日常分享。</p>
+        <div class="side-footer">
+          <span>© DeNoise Demo</span>
+          <span>离线可用</span>
+          <span>隐私优先</span>
         </div>
-      </article>
-    </main>
-
-    <aside class="trending-search" aria-label="全站热搜榜">
-      <h3>🔥 实时娱乐热搜榜（硬噪音模块）</h3>
-      <ul>
-        <li>1. 某明星恋情曝光引爆热搜</li>
-        <li>2. 年度爆笑沙雕合集更新</li>
-        <li>3. 双十一必买穿搭好物清单</li>
-        <li>4. 游戏新赛季皮肤限时返场</li>
-      </ul>
-    </aside>
+      </aside>
+    </div>
   </div>
 
+  <div class="toast" id="toast" role="status" aria-live="polite">已追加 4 条推荐</div>
+
   <script>
-    const extraCards = [
+    const icons = {
+      play: '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.7 3.1a.7.7 0 0 1 1.06-.6l7.02 4.9a.7.7 0 0 1 0 1.2l-7.02 4.9a.7.7 0 0 1-1.06-.6V3.1Z"/></svg>',
+      heart: '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 13.6 2.9 8.9A3.3 3.3 0 0 1 7.6 4.3l.4.4.4-.4a3.3 3.3 0 0 1 4.7 4.6L8 13.6Z"/></svg>',
+      bookmark: '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.2 2.6h7.6v10.8L8 10.7l-3.8 2.7V2.6Z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/></svg>'
+    };
+
+    const coverArt = {
+      mit: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#061711"/><stop offset=".56" stop-color="#0B2A20"/><stop offset="1" stop-color="#114534"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#34D399" stop-opacity=".46"/><stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+              <path d="M28 0H0v28" fill="none" stroke="#9AF0CF" stroke-opacity=".12"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <rect width="400" height="225" fill="url(#${u}-grid)"/>
+          <circle cx="318" cy="47" r="132" fill="url(#${u}-glow)"/>
+          <path d="M62 52H47v121h15M137 52h15v121h-15" fill="none" stroke="#A7F3D0" stroke-opacity=".82" stroke-width="2.2" stroke-linecap="round"/>
+          <g fill="#ECFDF5" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="15" font-weight="600" text-anchor="middle">
+            <text x="77" y="84">2</text><text x="105" y="84">-1</text><text x="133" y="84">0</text>
+            <text x="77" y="117">-1</text><text x="105" y="117">2</text><text x="133" y="117">-1</text>
+            <text x="77" y="150">0</text><text x="105" y="150">-1</text><text x="133" y="150">2</text>
+          </g>
+          <g transform="translate(180 96)">
+            <text x="0" y="0" fill="#FFFFFF" font-family="Georgia, serif" font-size="42" font-style="italic">λ</text>
+            <text x="41" y="-5" fill="#A7F3D0" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9" font-weight="700" letter-spacing="2.2">EIGENVALUE</text>
+            <text x="1" y="31" fill="#D1FAE5" fill-opacity=".82" font-family="Georgia, serif" font-size="15" font-style="italic">Av = λv</text>
+          </g>
+          <path d="M179 151c58 42 115 19 161-33" fill="none" stroke="#10B981" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="340" cy="118" r="4.2" fill="#6EE7B7"/>
+          <rect x="276" y="172" width="91" height="24" rx="12" fill="#FFFFFF" fill-opacity=".07" stroke="#A7F3D0" stroke-opacity=".24"/>
+          <text x="321.5" y="187.5" fill="#A7F3D0" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9" font-weight="650" letter-spacing="1.3" text-anchor="middle">18.06 / MIT</text>
+          <circle cx="342" cy="37" r="2" fill="#A7F3D0" fill-opacity=".62"/>
+          <circle cx="355" cy="54" r="1.4" fill="#A7F3D0" fill-opacity=".4"/>
+        </svg>`,
+
+      threeblue: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#071525"/><stop offset=".58" stop-color="#0D2138"/><stop offset="1" stop-color="#142F4E"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#60A5FA" stop-opacity=".2"/><stop offset="1" stop-color="#60A5FA" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M20 0H0v20" fill="none" stroke="#93C5FD" stroke-opacity=".1"/>
+            </pattern>
+            <marker id="${u}-gold" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0 0 6 3 0 6Z" fill="#FBBF24"/>
+            </marker>
+            <marker id="${u}-cyan" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0 0 6 3 0 6Z" fill="#22D3EE"/>
+            </marker>
+            <marker id="${u}-pink" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0 0 6 3 0 6Z" fill="#FB7185"/>
+            </marker>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <rect width="400" height="225" fill="url(#${u}-grid)"/>
+          <circle cx="206" cy="110" r="118" fill="url(#${u}-glow)"/>
+          <g opacity=".28" stroke="#93C5FD" fill="none">
+            <ellipse cx="204" cy="111" rx="80" ry="43" transform="rotate(-17 204 111)"/>
+            <ellipse cx="204" cy="111" rx="128" ry="70" transform="rotate(-17 204 111)"/>
+          </g>
+          <path d="M40 112h320M204 18v189" stroke="#93C5FD" stroke-opacity=".34" stroke-width="1"/>
+          <path d="m204 112 101-40" stroke="#FBBF24" stroke-width="2.4" marker-end="url(#${u}-gold)"/>
+          <path d="m204 112 127 55" stroke="#22D3EE" stroke-width="2.2" marker-end="url(#${u}-cyan)"/>
+          <path d="m204 112-66 70" stroke="#FB7185" stroke-width="2" marker-end="url(#${u}-pink)"/>
+          <path d="M204 112 304 72 331 167 138 182Z" fill="#60A5FA" fill-opacity=".055" stroke="#93C5FD" stroke-opacity=".3"/>
+          <circle cx="204" cy="112" r="5.4" fill="#F8FAFC"/>
+          <circle cx="204" cy="112" r="11" fill="none" stroke="#F8FAFC" stroke-opacity=".2"/>
+          <g fill="#DBEAFE" font-family="Georgia, serif" font-size="12" font-style="italic">
+            <text x="309" y="67">v</text><text x="339" y="172">e₂</text><text x="126" y="190">e₁</text>
+          </g>
+          <text x="31" y="198" fill="#93C5FD" fill-opacity=".66" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="650" letter-spacing="2.2">BASIS / TRANSFORM</text>
+          <circle cx="337" cy="43" r="2" fill="#FBBF24" fill-opacity=".8"/>
+          <circle cx="354" cy="63" r="1.2" fill="#22D3EE" fill-opacity=".8"/>
+        </svg>`,
+
+      songhao: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#12362C"/><stop offset=".62" stop-color="#1C4D3D"/><stop offset="1" stop-color="#28614D"/>
+            </linearGradient>
+            <pattern id="${u}-dust" width="17" height="17" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="4" r=".55" fill="#D1FAE5" fill-opacity=".16"/>
+              <circle cx="12" cy="9" r=".4" fill="#D1FAE5" fill-opacity=".1"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <rect width="400" height="225" fill="url(#${u}-dust)"/>
+          <rect x="13" y="13" width="374" height="199" rx="5" fill="none" stroke="#D1FAE5" stroke-opacity=".13"/>
+          <path d="M39 175h134M106 108v95" stroke="#F8FAFC" stroke-opacity=".35" stroke-width="1.2"/>
+          <path d="M106 168c18-33 33-41 49-29s27 7 42-19" fill="none" stroke="#FBBF24" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M60 64h-11v71h11M140 64h11v71h-11" fill="none" stroke="#F8FAFC" stroke-opacity=".75" stroke-width="1.7" stroke-linecap="round"/>
+          <g fill="#F8FAFC" font-family="Georgia, serif" font-size="13" font-style="italic" text-anchor="middle">
+            <text x="73" y="88">a</text><text x="95" y="88">b</text><text x="117" y="88">c</text>
+            <text x="73" y="112">d</text><text x="95" y="112">e</text><text x="117" y="112">f</text>
+            <text x="73" y="136">g</text><text x="95" y="136">h</text><text x="117" y="136">i</text>
+          </g>
+          <g font-family="'Kaiti SC', 'STKaiti', Georgia, serif" fill="#F8FAFC">
+            <text x="177" y="86" font-size="18" font-style="italic">A = PΛP⁻¹</text>
+            <text x="177" y="119" font-size="14" fill="#D1FAE5" fill-opacity=".76">Ax = λx</text>
+          </g>
+          <circle cx="319" cy="119" r="48" fill="#FBBF24" fill-opacity=".055" stroke="#FBBF24" stroke-opacity=".52" stroke-width="1.3"/>
+          <text x="319" y="137" fill="#FDE68A" font-family="Georgia, serif" font-size="54" font-style="italic" text-anchor="middle">λ</text>
+          <path d="M178 143c28 9 54 11 83 7" stroke="#F87171" stroke-width="2.3" stroke-linecap="round"/>
+          <path d="m251 144 14 5-11 8" fill="none" stroke="#F87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="31" y="199" fill="#D1FAE5" fill-opacity=".52" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="650" letter-spacing="2">SIMILARITY / DIAGONALIZATION</text>
+          <circle cx="338" cy="48" r="2" fill="#FDE68A" fill-opacity=".58"/>
+        </svg>`,
+
+      pca: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#191138"/><stop offset=".55" stop-color="#2E185A"/><stop offset="1" stop-color="#5B2178"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#F472B6" stop-opacity=".25"/><stop offset="1" stop-color="#F472B6" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-grid" width="25" height="25" patternUnits="userSpaceOnUse">
+              <path d="M25 0H0v25" fill="none" stroke="#F5D0FE" stroke-opacity=".09"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <rect width="400" height="225" fill="url(#${u}-grid)"/>
+          <circle cx="270" cy="110" r="133" fill="url(#${u}-glow)"/>
+          <g opacity=".38" stroke="#F5D0FE" fill="none">
+            <path d="M41 182h320M201 26v164" stroke-width=".8"/>
+            <path d="M201 182 287 92" stroke-width="1.2"/>
+            <path d="M201 182 121 111" stroke-width="1.2"/>
+          </g>
+          <g transform="rotate(-31 214 116)">
+            <ellipse cx="214" cy="116" rx="105" ry="43" fill="#F472B6" fill-opacity=".07" stroke="#F9A8D4" stroke-opacity=".55" stroke-width="1.3"/>
+            <ellipse cx="214" cy="116" rx="66" ry="25" fill="#F472B6" fill-opacity=".07" stroke="#F9A8D4" stroke-opacity=".34"/>
+          </g>
+          <g fill="#FBCFE8">
+            <circle cx="146" cy="151" r="3.2" fill-opacity=".9"/><circle cx="165" cy="138" r="2.4" fill-opacity=".7"/>
+            <circle cx="180" cy="158" r="3.8" fill-opacity=".86"/><circle cx="197" cy="130" r="2.8" fill-opacity=".68"/>
+            <circle cx="214" cy="146" r="3.1" fill-opacity=".8"/><circle cx="232" cy="121" r="2.5" fill-opacity=".68"/>
+            <circle cx="248" cy="137" r="3.6" fill-opacity=".8"/><circle cx="266" cy="112" r="2.7" fill-opacity=".64"/>
+            <circle cx="282" cy="127" r="2.2" fill-opacity=".58"/><circle cx="295" cy="103" r="3" fill-opacity=".62"/>
+            <circle cx="258" cy="89" r="2.1" fill-opacity=".58"/><circle cx="222" cy="96" r="2.8" fill-opacity=".62"/>
+          </g>
+          <g fill="#A7F3D0">
+            <circle cx="176" cy="93" r="2.8"/><circle cx="202" cy="77" r="2.2"/><circle cx="241" cy="66" r="3.2"/>
+            <circle cx="281" cy="54" r="2.2"/><circle cx="315" cy="72" r="2.8"/><circle cx="334" cy="51" r="1.8"/>
+          </g>
+          <path d="M201 182 297 78" stroke="#6EE7B7" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="297" cy="78" r="4" fill="#A7F3D0"/>
+          <text x="305" y="75" fill="#A7F3D0" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9" font-weight="700" letter-spacing="1.2">PC1</text>
+          <text x="35" y="204" fill="#F9A8D4" fill-opacity=".76" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="650" letter-spacing="2.1">COVARIANCE / EIGENDECOMPOSITION</text>
+          <circle cx="332" cy="178" r="19" fill="none" stroke="#F9A8D4" stroke-opacity=".23"/>
+          <circle cx="332" cy="178" r="13" fill="none" stroke="#F9A8D4" stroke-opacity=".15"/>
+        </svg>`,
+
+      pytorch: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#080C12"/><stop offset="1" stop-color="#111D2C"/>
+            </linearGradient>
+            <linearGradient id="${u}-panel" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0F172A"/><stop offset="1" stop-color="#101C2A"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#34D399" stop-opacity=".32"/><stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <circle cx="294" cy="105" r="117" fill="url(#${u}-glow)"/>
+          <rect x="24" y="23" width="352" height="179" rx="11" fill="url(#${u}-panel)" stroke="#263449"/>
+          <path d="M24 53h352" stroke="#263449"/>
+          <g fill="#3F4D60">
+            <circle cx="39" cy="38" r="3.2"/><circle cx="50" cy="38" r="3.2"/><circle cx="61" cy="38" r="3.2"/>
+          </g>
+          <text x="253" y="41" fill="#64748B" font-family="'SFMono-Regular', Menlo, monospace" font-size="7.5">eig_demo.py</text>
+          <text x="42" y="81" fill="#7DD3FC" font-family="'SFMono-Regular', Menlo, monospace" font-size="11">&gt;&gt;&gt; torch.linalg.eig(A)</text>
+          <text x="42" y="103" fill="#94A3B8" font-family="'SFMono-Regular', Menlo, monospace" font-size="8.5">torch.return_types.linalg_eig(</text>
+          <text x="58" y="120" fill="#A7F3D0" font-family="'SFMono-Regular', Menlo, monospace" font-size="8.5">eigenvalues=tensor([...]),</text>
+          <text x="58" y="137" fill="#C4B5FD" font-family="'SFMono-Regular', Menlo, monospace" font-size="8.5">eigenvectors=tensor([...]))</text>
+          <text x="42" y="161" fill="#64748B" font-family="'SFMono-Regular', Menlo, monospace" font-size="8.5"># A @ v == lambda * v</text>
+          <rect x="42" y="174" width="49" height="14" rx="3" fill="#10B981" fill-opacity=".11" stroke="#34D399" stroke-opacity=".28"/>
+          <text x="66.5" y="184" fill="#6EE7B7" font-family="'SFMono-Regular', Menlo, monospace" font-size="7.5" text-anchor="middle">CUDA</text>
+          <g transform="translate(261 77)">
+            <rect width="82" height="82" rx="8" fill="#07130F" stroke="#34D399" stroke-opacity=".32"/>
+            <path d="M12 17h-5v48h5M70 17h5v48h-5" fill="none" stroke="#34D399" stroke-opacity=".72" stroke-width="1.2" stroke-linecap="round"/>
+            <g fill="#D1FAE5" font-family="'SFMono-Regular', Menlo, monospace" font-size="9" text-anchor="middle">
+              <text x="24" y="31">3</text><text x="41" y="31">1</text><text x="58" y="31">0</text>
+              <text x="24" y="48">1</text><text x="41" y="48">3</text><text x="58" y="48">1</text>
+              <text x="24" y="65">0</text><text x="41" y="65">1</text><text x="58" y="65">3</text>
+            </g>
+            <circle cx="41" cy="48" r="13" fill="#34D399" fill-opacity=".1" stroke="#6EE7B7" stroke-opacity=".35"/>
+          </g>
+          <text x="302" y="183" fill="#34D399" fill-opacity=".62" font-family="'SFMono-Regular', Menlo, monospace" font-size="7.5" text-anchor="middle">λ₁ λ₂ λ₃</text>
+          <circle cx="352" cy="69" r="1.7" fill="#6EE7B7" fill-opacity=".7"/>
+        </svg>`,
+
+      exam: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-paper" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FBF4E8"/><stop offset="1" stop-color="#F4E8D3"/>
+            </linearGradient>
+            <pattern id="${u}-lines" width="24" height="24" patternUnits="userSpaceOnUse">
+              <path d="M0 23.5h24M23.5 0v24" fill="none" stroke="#B8C5D6" stroke-opacity=".3" stroke-width=".7"/>
+            </pattern>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-paper)"/>
+          <rect width="300" height="400" fill="url(#${u}-lines)"/>
+          <path d="M44 0v400" stroke="#E99B96" stroke-opacity=".62" stroke-width="1.2"/>
+          <path d="M0 47h300" stroke="#D8CBB5" stroke-opacity=".55"/>
+          <rect x="96" y="-9" width="108" height="28" rx="3" fill="#E8D9BE" fill-opacity=".72" transform="rotate(-2 150 5)"/>
+          <g font-family="'Kaiti SC', 'STKaiti', Georgia, serif" fill="#2E3A4A">
+            <text x="66" y="83" font-size="10" font-weight="700" letter-spacing="1.8">DAY 12 / EIGEN</text>
+            <text x="66" y="129" font-size="19" font-style="italic">|A - λI| = 0</text>
+            <text x="66" y="157" font-size="13" fill="#6A7482">λ₁ + λ₂ = tr(A)</text>
+            <text x="66" y="179" font-size="13" fill="#6A7482">λ₁λ₂ = det(A)</text>
+          </g>
+          <g transform="translate(68 213)">
+            <path d="M0 0h-12v83H0M82 0h12v83H-0" fill="none" stroke="#364152" stroke-width="1.6" stroke-linecap="round"/>
+            <g fill="#364152" font-family="Georgia, serif" font-size="14" font-style="italic" text-anchor="middle">
+              <text x="17" y="23">2</text><text x="47" y="23">1</text>
+              <text x="17" y="52">1</text><text x="47" y="52">2</text>
+            </g>
+          </g>
+          <path d="M168 243c16 12 30 13 46 3" fill="none" stroke="#DC5A50" stroke-width="1.7" stroke-linecap="round"/>
+          <text x="167" y="267" fill="#C74B43" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="14" font-style="italic">λ = 1, 3</text>
+          <path d="m174 290 8 8 17-18" fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="208" y="292" fill="#1B7A5B" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="11">正交对角化</text>
+          <rect x="54" y="319" width="197" height="58" rx="3" fill="#F7DD76" fill-opacity=".82" transform="rotate(1.5 152 348)"/>
+          <g transform="rotate(1.5 152 348)" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" fill="#66520C">
+            <text x="69" y="341" font-size="10" font-weight="700">今晚复习</text>
+            <text x="69" y="360" font-size="10">特征值 / 特征向量 / 对角化</text>
+          </g>
+          <path d="M239 56c-6 5-8 12-4 17" fill="none" stroke="#8D9AAB" stroke-width="1.1" stroke-linecap="round"/>
+          <circle cx="236" cy="81" r="2.2" fill="#8D9AAB"/>
+        </svg>`,
+
+      diagonal: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#052E2B"/><stop offset=".58" stop-color="#0B4F48"/><stop offset="1" stop-color="#0F766E"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#2DD4BF" stop-opacity=".34"/><stop offset="1" stop-color="#2DD4BF" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-grid" width="26" height="26" patternUnits="userSpaceOnUse">
+              <path d="M26 0H0v26" fill="none" stroke="#99F6E4" stroke-opacity=".09"/>
+            </pattern>
+            <marker id="${u}-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+              <path d="M0 0 7 3.2 0 6.4Z" fill="#99F6E4"/>
+            </marker>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <rect width="400" height="225" fill="url(#${u}-grid)"/>
+          <circle cx="226" cy="105" r="123" fill="url(#${u}-glow)"/>
+          <g transform="translate(49 63)">
+            <rect width="82" height="94" rx="7" fill="#FFFFFF" fill-opacity=".055" stroke="#99F6E4" stroke-opacity=".22"/>
+            <path d="M16 16h-5v62h5M66 16h5v62h-5" fill="none" stroke="#CCFBF1" stroke-opacity=".72" stroke-width="1.3"/>
+            <g fill="#ECFDF5" font-family="Georgia, serif" font-size="11" font-style="italic" text-anchor="middle">
+              <text x="27" y="34">2</text><text x="41" y="34">1</text><text x="55" y="34">0</text>
+              <text x="27" y="53">1</text><text x="41" y="53">2</text><text x="55" y="53">1</text>
+              <text x="27" y="72">0</text><text x="41" y="72">1</text><text x="55" y="72">2</text>
+            </g>
+          </g>
+          <path d="M146 110h57" stroke="#99F6E4" stroke-opacity=".72" stroke-width="1.6" marker-end="url(#${u}-arrow)"/>
+          <text x="175" y="98" fill="#99F6E4" fill-opacity=".76" font-family="Georgia, serif" font-size="9" font-style="italic" text-anchor="middle">P⁻¹AP</text>
+          <g transform="translate(223 63)">
+            <rect width="129" height="94" rx="7" fill="#FFFFFF" fill-opacity=".065" stroke="#99F6E4" stroke-opacity=".24"/>
+            <path d="M22 16h-5v62h5M107 16h5v62h-5" fill="none" stroke="#CCFBF1" stroke-opacity=".72" stroke-width="1.3"/>
+            <g fill="#ECFDF5" font-family="Georgia, serif" font-size="12" font-style="italic">
+              <text x="39" y="35">λ₁</text><text x="92" y="54">0</text><text x="92" y="35">0</text>
+              <text x="39" y="54">0</text><text x="39" y="73">0</text><text x="92" y="73">λ₃</text>
+            </g>
+            <text x="65" y="55" fill="#34D399" font-family="Georgia, serif" font-size="13" font-style="italic">λ₂</text>
+            <path d="M31 80h67" stroke="#34D399" stroke-opacity=".45" stroke-width="1"/>
+          </g>
+          <text x="49" y="185" fill="#CCFBF1" fill-opacity=".67" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="650" letter-spacing="2.2">CHANGE OF BASIS</text>
+          <circle cx="342" cy="45" r="3" fill="#5EEAD4" fill-opacity=".7"/>
+          <circle cx="357" cy="61" r="1.6" fill="#5EEAD4" fill-opacity=".45"/>
+        </svg>`,
+
+      trace: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FFF2E8"/><stop offset=".55" stop-color="#F8DFD3"/><stop offset="1" stop-color="#F2C9BC"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#FFFFFF" stop-opacity=".7"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <circle cx="306" cy="60" r="124" fill="url(#${u}-glow)"/>
+          <circle cx="307" cy="110" r="82" fill="none" stroke="#9F1239" stroke-opacity=".1" stroke-width="1"/>
+          <circle cx="307" cy="110" r="55" fill="none" stroke="#9F1239" stroke-opacity=".08" stroke-width="1"/>
+          <g transform="translate(44 58)">
+            <path d="M0 0h-12v94H0M94 0h12v94H0" fill="none" stroke="#5B2632" stroke-width="1.5" stroke-linecap="round"/>
+            <g fill="#4C1D2A" font-family="Georgia, serif" font-size="17" font-style="italic" text-anchor="middle">
+              <text x="20" y="29">a</text><text x="52" y="29">b</text>
+              <text x="20" y="68">c</text><text x="52" y="68">d</text>
+            </g>
+          </g>
+          <text x="188" y="86" fill="#6B2335" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="17" font-style="italic">λ₁ + λ₂ = a + d</text>
+          <text x="188" y="121" fill="#8E4B58" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="14" font-style="italic">λ₁λ₂ = ad - bc</text>
+          <path d="M188 142h164" stroke="#B75B68" stroke-opacity=".44" stroke-linecap="round"/>
+          <text x="188" y="165" fill="#A45E69" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2">TRACE / DETERMINANT</text>
+          <circle cx="347" cy="186" r="3" fill="#9F1239" fill-opacity=".42"/>
+          <path d="M31 31h33M31 38h18" stroke="#9F1239" stroke-opacity=".28" stroke-linecap="round"/>
+        </svg>`,
+
+      map: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#EAF0FA"/><stop offset=".55" stop-color="#DCE7F6"/><stop offset="1" stop-color="#C9D9EE"/>
+            </linearGradient>
+            <pattern id="${u}-grid" width="22" height="22" patternUnits="userSpaceOnUse">
+              <path d="M22 0H0v22" fill="none" stroke="#54749B" stroke-opacity=".13" stroke-width=".7"/>
+            </pattern>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#10B981" stop-opacity=".22"/><stop offset="1" stop-color="#10B981" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-bg)"/>
+          <rect width="300" height="400" fill="url(#${u}-grid)"/>
+          <circle cx="150" cy="200" r="111" fill="url(#${u}-glow)"/>
+          <g stroke="#315A83" stroke-opacity=".28" stroke-width="1">
+            <path d="M150 200 75 112M150 200l79-81M150 200l89 37M150 200l-12 112M150 200l-86 64M150 200l37-143M150 200l-112 4"/>
+          </g>
+          <g fill="#F9FBFF" stroke="#315A83" stroke-opacity=".34">
+            <circle cx="75" cy="112" r="17"/><circle cx="229" cy="119" r="17"/><circle cx="239" cy="237" r="17"/>
+            <circle cx="138" cy="312" r="17"/><circle cx="64" cy="264" r="17"/><circle cx="187" cy="57" r="17"/><circle cx="38" cy="204" r="17"/>
+          </g>
+          <g fill="#315A83" font-family="Georgia, serif" font-size="9" font-style="italic" text-anchor="middle">
+            <text x="75" y="116">Ax</text><text x="229" y="123">λ</text><text x="239" y="241">PCA</text>
+            <text x="138" y="316">SVD</text><text x="64" y="268">det</text><text x="187" y="61">P⁻¹</text><text x="38" y="208">rank</text>
+          </g>
+          <circle cx="150" cy="200" r="31" fill="#0F766E" stroke="#ECFDF5" stroke-width="4"/>
+          <text x="150" y="208" fill="#ECFDF5" font-family="Georgia, serif" font-size="21" font-style="italic" text-anchor="middle">λ</text>
+          <circle cx="150" cy="200" r="45" fill="none" stroke="#10B981" stroke-opacity=".28"/>
+          <g fill="#0F766E" fill-opacity=".56">
+            <circle cx="106" cy="167" r="2"/><circle cx="193" cy="166" r="1.6"/><circle cx="203" cy="228" r="2.2"/>
+          </g>
+          <text x="30" y="34" fill="#315A83" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.4">LINEAR ALGEBRA MAP</text>
+          <text x="30" y="371" fill="#315A83" fill-opacity=".48" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="7.5" letter-spacing="1.4">12 CORE CONCEPTS</text>
+        </svg>`,
+
+      pset: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FCFDFB"/><stop offset="1" stop-color="#EEF3ED"/>
+            </linearGradient>
+            <pattern id="${u}-grid" width="18" height="18" patternUnits="userSpaceOnUse">
+              <path d="M18 0H0v18" fill="none" stroke="#799B8C" stroke-opacity=".14" stroke-width=".65"/>
+            </pattern>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-bg)"/>
+          <rect width="300" height="400" fill="url(#${u}-grid)"/>
+          <path d="M34 0v400" stroke="#D58080" stroke-opacity=".38" stroke-width="1"/>
+          <path d="M0 52h300" stroke="#9BAF9F" stroke-opacity=".34"/>
+          <text x="47" y="31" fill="#26483B" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="9" font-weight="700" letter-spacing="2">PROBLEM SET 6</text>
+          <text x="47" y="84" fill="#27463B" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="15">实对称矩阵 · 特征值证明</text>
+          <g transform="translate(49 116)">
+            <path d="M0 0h-11v81H0M91 0h11v81H0" fill="none" stroke="#26483B" stroke-width="1.5" stroke-linecap="round"/>
+            <g fill="#26483B" font-family="Georgia, serif" font-size="14" font-style="italic" text-anchor="middle">
+              <text x="19" y="23">4</text><text x="52" y="23">2</text>
+              <text x="19" y="52">2</text><text x="52" y="52">4</text>
+            </g>
+          </g>
+          <path d="M169 153c16 10 28 11 42 3" fill="none" stroke="#C74842" stroke-width="1.7" stroke-linecap="round"/>
+          <text x="170" y="181" fill="#B53D37" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="13">λ = 2, 6</text>
+          <path d="m171 207 7 7 15-16" fill="none" stroke="#16815D" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="201" y="209" fill="#276B55" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="10">实对称 ⇒ 可正交对角化</text>
+          <g font-family="'Kaiti SC', 'STKaiti', Georgia, serif" fill="#405A4F">
+            <text x="47" y="247" font-size="11">① 求特征多项式</text>
+            <text x="47" y="272" font-size="11">② 验证特征向量正交</text>
+            <text x="47" y="297" font-size="11">③ 单位化构造正交矩阵 Q</text>
+          </g>
+          <rect x="46" y="318" width="207" height="42" rx="2" fill="#F6E39A" fill-opacity=".72" transform="rotate(-1 150 339)"/>
+          <text x="61" y="335" fill="#675612" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="9.5" font-weight="700">易错：特征值按重数计</text>
+          <text x="61" y="350" fill="#77631A" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="9">n 个特征值 ⇒ n 个线性无关特征向量</text>
+          <path d="M231 72c9-9 24-7 25 5 1 11-13 15-25 4-12 11-26 7-25-4 1-12 16-14 25-5Z" fill="none" stroke="#D58080" stroke-opacity=".65"/>
+        </svg>`,
+
+      gossip: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FF4D8D"/><stop offset=".5" stop-color="#D6298D"/><stop offset="1" stop-color="#6D1E91"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#FFD1E8" stop-opacity=".55"/><stop offset="1" stop-color="#FFD1E8" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-dots" width="18" height="18" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="3" r="1" fill="#FFF1F8" fill-opacity=".18"/>
+            </pattern>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-bg)"/>
+          <rect width="300" height="400" fill="url(#${u}-dots)"/>
+          <circle cx="245" cy="68" r="125" fill="url(#${u}-glow)"/>
+          <g transform="translate(40 70) rotate(-7)">
+            <rect width="126" height="151" rx="4" fill="#FFF9FC" fill-opacity=".93"/>
+            <rect x="9" y="9" width="108" height="86" rx="2" fill="#7E2A8F" fill-opacity=".13"/>
+            <circle cx="63" cy="48" r="24" fill="#C13585" fill-opacity=".22"/>
+            <path d="M28 72c10-15 25-17 37-4 8-9 17-6 23 4" fill="none" stroke="#9B2C7C" stroke-opacity=".42" stroke-width="2"/>
+            <rect x="13" y="107" width="75" height="7" rx="3.5" fill="#A55B8C" fill-opacity=".24"/>
+            <rect x="13" y="122" width="48" height="7" rx="3.5" fill="#A55B8C" fill-opacity=".17"/>
+            <text x="95" y="139" fill="#B52C70" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="750" letter-spacing="1">EXCLUSIVE</text>
+          </g>
+          <g transform="translate(177 179) rotate(8)">
+            <rect width="91" height="126" rx="4" fill="#FFF4FA" fill-opacity=".88"/>
+            <circle cx="45" cy="42" r="19" fill="#EC4899" fill-opacity=".2"/>
+            <path d="M45 61c-12-9-19-16-15-25 3-7 12-7 15-1 3-6 12-6 15 1 4 9-3 16-15 25Z" fill="#D92D76" fill-opacity=".66"/>
+            <rect x="15" y="82" width="62" height="6" rx="3" fill="#A55B8C" fill-opacity=".23"/>
+            <rect x="15" y="95" width="42" height="6" rx="3" fill="#A55B8C" fill-opacity=".16"/>
+          </g>
+          <path d="m237 125 10 21 23 3-17 16 4 23-20-11-20 11 4-23-17-16 23-3 10-21Z" fill="#FFE27A" fill-opacity=".9"/>
+          <path d="M54 278c6-10 18-10 24 0 6-10 18-10 24 0-4 12-13 19-24 25-11-6-20-13-24-25Z" fill="#FFB5D7" fill-opacity=".78"/>
+          <text x="30" y="345" fill="#FFE6F2" font-family="Georgia, serif" font-size="42" font-style="italic" font-weight="700">!</text>
+          <text x="62" y="344" fill="#FFE6F2" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.6">ENTERTAINMENT</text>
+          <g fill="#FFF1F8" fill-opacity=".48">
+            <circle cx="252" cy="298" r="2"/><circle cx="270" cy="319" r="1.4"/><circle cx="31" cy="64" r="1.6"/>
+          </g>
+        </svg>`,
+
+      gacha: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#16072E"/><stop offset=".5" stop-color="#2C1158"/><stop offset="1" stop-color="#4C1D95"/>
+            </linearGradient>
+            <radialGradient id="${u}-portal">
+              <stop stop-color="#FDE68A" stop-opacity=".7"/><stop offset=".45" stop-color="#F59E0B" stop-opacity=".2"/><stop offset="1" stop-color="#F59E0B" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="${u}-card" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FEF3C7"/><stop offset=".5" stop-color="#FBBF24"/><stop offset="1" stop-color="#F59E0B"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <circle cx="206" cy="113" r="122" fill="url(#${u}-portal)"/>
+          <g fill="none" stroke="#FDE68A" stroke-opacity=".18">
+            <circle cx="206" cy="113" r="48"/><circle cx="206" cy="113" r="68"/><circle cx="206" cy="113" r="92"/>
+          </g>
+          <g transform="translate(158 40) rotate(-8)">
+            <rect width="96" height="139" rx="8" fill="url(#${u}-card)" stroke="#FFFBEB" stroke-opacity=".7"/>
+            <rect x="8" y="8" width="80" height="123" rx="5" fill="#3B1768" fill-opacity=".86"/>
+            <circle cx="48" cy="55" r="27" fill="#FDE68A" fill-opacity=".15" stroke="#FDE68A" stroke-opacity=".5"/>
+            <path d="m48 32 8 17 19 2-14 13 4 19-17-10-17 10 4-19-14-13 19-2 8-17Z" fill="#FCD34D"/>
+            <text x="48" y="112" fill="#FDE68A" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="10" font-weight="800" letter-spacing="2" text-anchor="middle">SSR</text>
+          </g>
+          <g fill="#FDE68A">
+            <path d="m300 54 3 8 8 3-8 3-3 8-3-8-8-3 8-3 3-8Z"/>
+            <path d="m107 77 2.4 6.5 6.5 2.4-6.5 2.4-2.4 6.5-2.4-6.5-6.5-2.4 6.5-2.4 2.4-6.5Z" opacity=".7"/>
+            <path d="m302 161 2 5.4 5.4 2-5.4 2-2 5.4-2-5.4-5.4-2 5.4-2 2-5.4Z" opacity=".64"/>
+            <circle cx="127" cy="162" r="2.2" opacity=".6"/><circle cx="280" cy="110" r="1.6" opacity=".5"/>
+          </g>
+          <path d="M84 190c24-20 46-20 67 0M249 190c22-17 43-17 65 0" fill="none" stroke="#A78BFA" stroke-opacity=".34" stroke-linecap="round"/>
+          <text x="27" y="30" fill="#DDD6FE" fill-opacity=".62" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.2">LIMITED BANNER</text>
+        </svg>`,
+
+      food: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#9A3412"/><stop offset=".45" stop-color="#C2410C"/><stop offset="1" stop-color="#EA580C"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#FED7AA" stop-opacity=".48"/><stop offset="1" stop-color="#FED7AA" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <circle cx="202" cy="113" r="130" fill="url(#${u}-glow)"/>
+          <g transform="translate(103 82)">
+            <path d="M0 34c0 48 39 82 94 82s94-34 94-82H0Z" fill="#F8FAFC"/>
+            <path d="M9 42c6 38 38 65 85 65s79-27 85-65" fill="none" stroke="#CBD5E1" stroke-width="2"/>
+            <ellipse cx="94" cy="35" rx="94" ry="22" fill="#FFF7ED"/>
+            <ellipse cx="94" cy="35" rx="82" ry="16" fill="#7C2D12"/>
+            <g fill="none" stroke="#FDE68A" stroke-width="2.4" stroke-linecap="round">
+              <path d="M29 34c13-8 20 7 32-1s20 7 32-1 20 7 32-1 20 7 32-1"/>
+              <path d="M38 41c11-7 19 5 30-2s20 6 31-2 20 6 31-2 18 5 27-1"/>
+            </g>
+            <ellipse cx="72" cy="32" rx="18" ry="13" fill="#FEF3C7"/>
+            <ellipse cx="72" cy="32" rx="8" ry="6" fill="#F59E0B"/>
+            <g fill="#15803D">
+              <ellipse cx="119" cy="30" rx="8" ry="3.5" transform="rotate(-22 119 30)"/>
+              <ellipse cx="129" cy="38" rx="7" ry="3" transform="rotate(18 129 38)"/>
+              <ellipse cx="112" cy="40" rx="6" ry="2.7" transform="rotate(28 112 40)"/>
+            </g>
+            <path d="M-8 29 185 9" stroke="#78350F" stroke-width="4" stroke-linecap="round"/>
+            <path d="M6 21 195 3" stroke="#92400E" stroke-width="3.4" stroke-linecap="round"/>
+          </g>
+          <g fill="none" stroke="#FFF7ED" stroke-opacity=".4" stroke-width="1.8" stroke-linecap="round">
+            <path d="M160 62c-9-12 9-19 0-31"/><path d="M197 53c-9-13 10-20 1-33"/><path d="M234 62c-8-11 8-18 0-29"/>
+          </g>
+          <text x="28" y="31" fill="#FFEDD5" fill-opacity=".78" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.4">NIGHT MARKET</text>
+          <text x="31" y="202" fill="#FFEDD5" fill-opacity=".5" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="10">深夜 · 热气腾腾</text>
+        </svg>`,
+
+      fashion: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#F7EDE5"/><stop offset=".55" stop-color="#EDD7CE"/><stop offset="1" stop-color="#DDB9B2"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#FFFFFF" stop-opacity=".62"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-bg)"/>
+          <circle cx="196" cy="114" r="120" fill="url(#${u}-glow)"/>
+          <path d="M82 65c0-20 16-36 36-36h70c20 0 36 16 36 36v262H82V65Z" fill="#FBF7F3" fill-opacity=".56" stroke="#9A6A63" stroke-opacity=".2"/>
+          <path d="M94 327V68c0-14 11-25 25-25h66c14 0 25 11 25 25v259" fill="none" stroke="#8D5E57" stroke-opacity=".24"/>
+          <path d="M149 44v36M134 65h30" stroke="#8D5E57" stroke-opacity=".38" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M126 85c0-7 5-12 12-12h22c7 0 12 5 12 12l-4 10 3 32h-44l3-32-4-10Z" fill="#8D5E57" fill-opacity=".13"/>
+          <path d="M134 84c0-6 4-9 15-9s15 3 15 9" fill="none" stroke="#8D5E57" stroke-opacity=".55" stroke-width="1.2"/>
+          <path d="M128 127h42l14 112h-21l-9-77-5 77h-20l-9-112Z" fill="#A86F66" fill-opacity=".48"/>
+          <path d="M133 128c-17 18-22 53-22 86M165 128c17 18 22 53 22 86" fill="none" stroke="#A86F66" stroke-opacity=".43" stroke-width="6" stroke-linecap="round"/>
+          <path d="M149 159v82" stroke="#F8EDE7" stroke-opacity=".58" stroke-width="1"/>
+          <g transform="translate(54 219)">
+            <rect width="46" height="33" rx="5" fill="#B98278" fill-opacity=".55"/>
+            <path d="M13 0v-8c0-7 5-11 10-11s10 4 10 11V0" fill="none" stroke="#9A6A63" stroke-opacity=".55" stroke-width="1.6"/>
+            <circle cx="35" cy="19" r="1.5" fill="#F7EDE5" fill-opacity=".7"/>
+          </g>
+          <g transform="translate(205 296)">
+            <circle cx="20" cy="20" r="20" fill="#8D5E57" fill-opacity=".14"/>
+            <path d="M11 28c2-10 16-10 18 0M20 12a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z" fill="#8D5E57" fill-opacity=".38"/>
+          </g>
+          <text x="31" y="43" fill="#76514B" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="750" letter-spacing="2.8">LOOK 03</text>
+          <text x="218" y="54" fill="#76514B" fill-opacity=".44" font-family="Georgia, serif" font-size="28" font-style="italic">“</text>
+          <path d="M39 361h77M39 371h48" stroke="#8D5E57" stroke-opacity=".32" stroke-linecap="round"/>
+        </svg>`,
+
+      comedy: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FDE047"/><stop offset=".55" stop-color="#D9F99D"/><stop offset="1" stop-color="#86EFAC"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#FFFFFF" stop-opacity=".52"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <circle cx="201" cy="112" r="123" fill="url(#${u}-glow)"/>
+          <circle cx="201" cy="112" r="72" fill="#FEF9C3" stroke="#191919" stroke-width="3"/>
+          <circle cx="177" cy="96" r="7" fill="#191919"/><circle cx="225" cy="96" r="7" fill="#191919"/>
+          <path d="M166 128c10 21 60 21 70 0" fill="none" stroke="#191919" stroke-width="3.2" stroke-linecap="round"/>
+          <path d="M158 67c9-11 20-14 32-9M212 58c12-5 23-2 32 9" fill="none" stroke="#191919" stroke-width="2.6" stroke-linecap="round"/>
+          <g fill="#F97316" stroke="#191919" stroke-width="1.2">
+            <path d="m61 43 7 14 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2 7-14Z"/>
+            <path d="m341 153 5 10 11 1-8 8 2 11-10-5-10 5 2-11-8-8 11-1 5-10Z" fill="#22C55E"/>
+          </g>
+          <g fill="none" stroke-linecap="round">
+            <path d="M47 179c20-12 31-5 41 8" stroke="#F97316" stroke-width="3"/>
+            <path d="M321 62c13-15 27-16 40-6" stroke="#EF4444" stroke-width="2.5"/>
+          </g>
+          <g fill="#191919">
+            <circle cx="73" cy="122" r="3"/><circle cx="328" cy="106" r="2.4"/><circle cx="307" cy="200" r="2"/>
+          </g>
+          <text x="29" y="28" fill="#3F3F1A" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="750" letter-spacing="2.4">COMEDY CLUB</text>
+          <path d="M95 203h45M263 35h37" stroke="#191919" stroke-opacity=".28" stroke-width="2" stroke-linecap="round"/>
+        </svg>`,
+
+      romance: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#310A16"/><stop offset=".55" stop-color="#641226"/><stop offset="1" stop-color="#9F1239"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#FB7185" stop-opacity=".35"/><stop offset="1" stop-color="#FB7185" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <circle cx="204" cy="111" r="132" fill="url(#${u}-glow)"/>
+          <g transform="translate(89 38) rotate(-7)">
+            <rect width="94" height="157" rx="11" fill="#1F0710" stroke="#FB7185" stroke-opacity=".28"/>
+            <rect x="6" y="6" width="82" height="145" rx="7" fill="#FFF1F2" fill-opacity=".09"/>
+            <circle cx="47" cy="55" r="25" fill="#FDA4AF" fill-opacity=".15"/>
+            <path d="M33 66c1-14 27-14 28 0M47 26c8 0 14 6 14 14s-6 14-14 14-14-6-14-14 6-14 14-14Z" fill="#FDA4AF" fill-opacity=".36"/>
+            <rect x="15" y="94" width="64" height="5" rx="2.5" fill="#FDA4AF" fill-opacity=".3"/>
+            <rect x="15" y="107" width="43" height="5" rx="2.5" fill="#FDA4AF" fill-opacity=".19"/>
+          </g>
+          <g transform="translate(214 39) rotate(7)">
+            <rect width="94" height="157" rx="11" fill="#1F0710" stroke="#FB7185" stroke-opacity=".28"/>
+            <rect x="6" y="6" width="82" height="145" rx="7" fill="#FFF1F2" fill-opacity=".09"/>
+            <circle cx="47" cy="55" r="25" fill="#F9A8D4" fill-opacity=".14"/>
+            <path d="M33 66c1-14 27-14 28 0M47 26c8 0 14 6 14 14s-6 14-14 14-14-6-14-14 6-14 14-14Z" fill="#F9A8D4" fill-opacity=".34"/>
+            <rect x="15" y="94" width="64" height="5" rx="2.5" fill="#F9A8D4" fill-opacity=".28"/>
+            <rect x="15" y="107" width="43" height="5" rx="2.5" fill="#F9A8D4" fill-opacity=".18"/>
+          </g>
+          <path d="M200 128c-12-9-18-16-14-24 3-7 12-7 14-1 2-6 11-6 14 1 4 8-2 15-14 24Z" fill="#FB7185"/>
+          <g fill="#FDA4AF" fill-opacity=".45">
+            <circle cx="60" cy="58" r="2"/><circle cx="333" cy="70" r="1.7"/><circle cx="316" cy="184" r="2.2"/>
+          </g>
+          <text x="29" y="28" fill="#FECDD3" fill-opacity=".7" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="700" letter-spacing="2.6">BREAKING / 08:41</text>
+          <path d="M292 188h58M310 198h40" stroke="#FB7185" stroke-opacity=".2" stroke-linecap="round"/>
+        </svg>`,
+
+      exampaper: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#FAFAF6"/><stop offset="1" stop-color="#EEF0E9"/>
+            </linearGradient>
+            <pattern id="${u}-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M20 0H0v20" fill="none" stroke="#72879A" stroke-opacity=".13" stroke-width=".7"/>
+            </pattern>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-bg)"/>
+          <rect width="300" height="400" fill="url(#${u}-grid)"/>
+          <text x="28" y="40" fill="#29465C" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8.5" font-weight="750" letter-spacing="2.2">MATH / 2024</text>
+          <text x="28" y="76" fill="#263B4A" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="16">考研数学 · 特征值真题</text>
+          <text x="28" y="109" fill="#4E6474" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="11">设 A 为 3 阶实对称矩阵，</text>
+          <text x="28" y="128" fill="#4E6474" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="11">特征值为 1, 2, 2，求正交矩阵 Q。</text>
+          <g transform="translate(34 157)">
+            <path d="M0 0h-10v73H0M74 0h10v73H0" fill="none" stroke="#29465C" stroke-width="1.4"/>
+            <g fill="#29465C" font-family="Georgia, serif" font-size="13" font-style="italic" text-anchor="middle">
+              <text x="16" y="22">1</text><text x="44" y="22">0</text>
+              <text x="16" y="47">0</text><text x="44" y="47">2</text>
+            </g>
+          </g>
+          <path d="M132 186c18 11 33 12 48 3" fill="none" stroke="#C84A3E" stroke-width="1.8" stroke-linecap="round"/>
+          <text x="132" y="213" fill="#B33D33" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="12">重数 = 2 ⇒ 两个正交向量</text>
+          <path d="m132 241 7 7 14-15" fill="none" stroke="#15815C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="#354E60" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="10.5">
+            <text x="29" y="279">① 求每个特征值的特征空间</text>
+            <text x="29" y="301">② Gram-Schmidt 正交化</text>
+            <text x="29" y="323">③ 单位化后按列拼成 Q</text>
+          </g>
+          <rect x="28" y="342" width="177" height="34" rx="2" fill="#F5DE86" fill-opacity=".72" transform="rotate(-1.5 116 359)"/>
+          <text x="40" y="357" fill="#675612" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="9.5" font-weight="700">QᵀAQ = diag(1, 2, 2)</text>
+          <text x="40" y="370" fill="#77631A" font-family="'Kaiti SC', 'STKaiti', Georgia, serif" font-size="8.5">注意：特征向量顺序可交换</text>
+          <circle cx="235" cy="86" r="16" fill="none" stroke="#C84A3E" stroke-opacity=".44"/>
+          <path d="M227 86h16M235 78v16" stroke="#C84A3E" stroke-opacity=".44"/>
+        </svg>`,
+
+      geometry: (u) => `
+        <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0B1026"/><stop offset=".55" stop-color="#18234D"/><stop offset="1" stop-color="#243B72"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#60A5FA" stop-opacity=".3"/><stop offset="1" stop-color="#60A5FA" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+              <path d="M24 0H0v24" fill="none" stroke="#BFDBFE" stroke-opacity=".08"/>
+            </pattern>
+          </defs>
+          <rect width="300" height="400" fill="url(#${u}-bg)"/>
+          <rect width="300" height="400" fill="url(#${u}-grid)"/>
+          <circle cx="150" cy="199" r="126" fill="url(#${u}-glow)"/>
+          <path d="M50 199h200M150 99v200" stroke="#BFDBFE" stroke-opacity=".25"/>
+          <g fill="none" stroke="#60A5FA" stroke-opacity=".55">
+            <ellipse cx="150" cy="199" rx="82" ry="42" transform="rotate(-28 150 199)"/>
+            <ellipse cx="150" cy="199" rx="82" ry="58" transform="rotate(42 150 199)"/>
+          </g>
+          <path d="M150 199 228 139" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M150 199 94 271" stroke="#FB7185" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M150 199 86 148" stroke="#6EE7B7" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="228" cy="139" r="4" fill="#FBBF24"/>
+          <circle cx="94" cy="271" r="3.5" fill="#FB7185"/>
+          <circle cx="86" cy="148" r="3.5" fill="#6EE7B7"/>
+          <circle cx="150" cy="199" r="5" fill="#F8FAFC"/>
+          <circle cx="150" cy="199" r="12" fill="none" stroke="#F8FAFC" stroke-opacity=".2"/>
+          <g fill="#DBEAFE" font-family="Georgia, serif" font-size="12" font-style="italic">
+            <text x="236" y="137">v</text><text x="83" y="286">Av</text><text x="75" y="145">e₁</text>
+          </g>
+          <text x="28" y="40" fill="#BFDBFE" fill-opacity=".66" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.4">EIGEN / GEOMETRY</text>
+          <text x="28" y="370" fill="#BFDBFE" fill-opacity=".48" font-family="Georgia, serif" font-size="13" font-style="italic">Av = λv</text>
+          <circle cx="257" cy="321" r="2" fill="#FBBF24" fill-opacity=".7"/>
+        </svg>`,
+
+      gamefail: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-bg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#08111F"/><stop offset=".55" stop-color="#0F2038"/><stop offset="1" stop-color="#172D4F"/>
+            </linearGradient>
+            <radialGradient id="${u}-glow">
+              <stop stop-color="#F97316" stop-opacity=".34"/><stop offset="1" stop-color="#F97316" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="${u}-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+              <path d="M28 0H0v28" fill="none" stroke="#93C5FD" stroke-opacity=".07"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-bg)"/>
+          <rect width="400" height="225" fill="url(#${u}-grid)"/>
+          <circle cx="205" cy="112" r="123" fill="url(#${u}-glow)"/>
+          <g transform="translate(104 67) rotate(-7)">
+            <path d="M47 0c16 0 23 8 30 24l26 65c9 23-15 38-31 21l-19-20H41L22 110C6 127-18 112-9 89l26-65C24 8 31 0 47 0Z" fill="#E5E7EB" stroke="#94A3B8" stroke-width="1.4"/>
+            <path d="M20 56h27M33.5 42v28" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+            <g fill="#F97316">
+              <circle cx="69" cy="46" r="4"/><circle cx="83" cy="58" r="4"/><circle cx="55" cy="58" r="4"/><circle cx="69" cy="70" r="4"/>
+            </g>
+            <circle cx="47" cy="55" r="4.5" fill="#10B981"/>
+            <path d="M44 81h7" stroke="#64748B" stroke-width="2" stroke-linecap="round"/>
+          </g>
+          <g fill="#F97316">
+            <path d="M67 55h35M52 75h27M298 143h37" stroke="#F97316" stroke-opacity=".4" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="82" cy="167" r="2"/><circle cx="332" cy="72" r="1.7"/>
+          </g>
+          <text x="30" y="32" fill="#93C5FD" fill-opacity=".58" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.4">RANKED / 03:17</text>
+          <text x="288" y="191" fill="#FDBA74" fill-opacity=".64" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="1.8">GG</text>
+        </svg>`,
+
+      travel: (u) => `
+        <svg viewBox="0 0 400 225" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="${u}-sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#312E81"/><stop offset=".45" stop-color="#9D4E7C"/><stop offset="1" stop-color="#FB923C"/>
+            </linearGradient>
+            <radialGradient id="${u}-sun">
+              <stop stop-color="#FEF3C7" stop-opacity=".92"/><stop offset="1" stop-color="#FDE68A" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect width="400" height="225" fill="url(#${u}-sky)"/>
+          <circle cx="292" cy="91" r="72" fill="url(#${u}-sun)"/>
+          <circle cx="292" cy="91" r="23" fill="#FDE68A"/>
+          <path d="M0 177 70 115l47 39 55-53 55 58 45-35 128 90v11H0v-48Z" fill="#3F2A4D" fill-opacity=".66"/>
+          <path d="M0 194 84 145l42 27 75-49 57 46 47-24 95 55v25H0v-31Z" fill="#1E1B3A" fill-opacity=".86"/>
+          <path d="M169 225c17-43 43-57 78-42 24 10 40 22 50 42H169Z" fill="#0F172A"/>
+          <path d="M191 225c11-29 30-42 57-35 20 5 32 16 40 35h-97Z" fill="#334155"/>
+          <path d="M244 225c-7-15-17-25-31-31" fill="none" stroke="#FBBF24" stroke-opacity=".55" stroke-width="2" stroke-dasharray="5 6"/>
+          <g fill="none" stroke="#FED7AA" stroke-opacity=".68" stroke-width="1.4" stroke-linecap="round">
+            <path d="M90 73c5-6 10-6 15 0M111 64c4-5 8-5 12 0M142 82c4-5 8-5 12 0"/>
+          </g>
+          <text x="28" y="32" fill="#FED7AA" fill-opacity=".74" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="8" font-weight="700" letter-spacing="2.6">WEEKEND / VLOG</text>
+          <path d="M31 197h57M31 205h35" stroke="#FED7AA" stroke-opacity=".32" stroke-linecap="round"/>
+        </svg>`
+    };
+
+    const cards = [
       {
-        tag: '考前串讲',
-        title: '高等数学多元微分学与雅可比矩阵、海森矩阵极值判定定理推导',
-        desc: '期末复习必看核心题型归纳与证明思路拆解。'
+        id: 'mit-1806', type: 'video', kind: 'study', art: 'mit',
+        tag: '公开课', topic: 'MIT',
+        title: 'MIT 18.06 第 21 讲：特征值与特征向量，Gilbert Strang 黑板推导',
+        author: 'MIT OCW', avatar: 'G', av: ['#065F46', '#34D399'],
+        views: '12.3万', duration: '48:12', time: '2 天前',
+        foot: '线性代数', hint: '公开课',
+        desc: '从 Ax = λx 出发，把特征值讲成变换中“方向不变”的那几条轴。'
       },
       {
-        tag: '搞笑短视频',
-        title: '千万别在喝水时看这个视频！当代大学生宿舍整活搞笑大赏',
-        desc: '哈哈哈哈笑出腹肌，室友连夜扛着火车跑了。'
+        id: 'threeblue-eigen', type: 'video', kind: 'study', art: 'threeblue',
+        tag: '动画', topic: '3B1B',
+        title: '3Blue1Brown：线性代数的本质，特征向量与基变换的几何直觉',
+        author: '3Blue1Brown', avatar: '3B', av: ['#1D4ED8', '#22D3EE'],
+        views: '86.7万', duration: '17:42', time: '1 周前',
+        foot: '几何直观', hint: '可视化'
+      },
+      {
+        id: 'gossip-redcarpet', type: 'note', kind: 'fun', art: 'gossip',
+        tag: '娱乐', topic: '热议',
+        title: '内娱年度红毯名场面：高定翻车还是封神？现场生图全记录',
+        author: '吃瓜研究所', avatar: '瓜', av: ['#BE185D', '#F472B6'],
+        views: '28.6万', duration: '02:14', time: '3 小时前',
+        foot: '娱乐八卦', hint: '图文'
+      },
+      {
+        id: 'songhao-final', type: 'video', kind: 'study', art: 'songhao',
+        tag: '期末救命', topic: '宋浩',
+        title: '宋浩老师《线性代数》期末救命课：特征值、特征向量与相似对角化',
+        author: '宋浩老师', avatar: '宋', av: ['#065F46', '#6EE7B7'],
+        views: '42.8万', duration: '31:06', time: '4 天前',
+        foot: '期末复习', hint: '高能'
+      },
+      {
+        id: 'pca-covariance', type: 'video', kind: 'study', art: 'pca',
+        tag: '机器学习', topic: 'PCA',
+        title: '一文吃透 PCA：协方差矩阵、特征值分解与降维步骤',
+        author: 'ML 笔记', avatar: 'ML', av: ['#6D28D9', '#F472B6'],
+        views: '9.4万', duration: '12:08', time: '昨天',
+        foot: '降维', hint: '代码',
+        desc: '协方差矩阵的特征分解、主成分排序与投影降维，一次跑通。'
+      },
+      {
+        id: 'gacha-300', type: 'video', kind: 'fun', art: 'gacha',
+        tag: '游戏', topic: '抽卡',
+        title: '新版本 300 抽实录：金光一闪，主播当场沉默',
+        author: '非酋直播间', avatar: '抽', av: ['#5B21B6', '#F59E0B'],
+        views: '63.2万', duration: '06:37', time: '5 小时前',
+        foot: '游戏整活', hint: '高能',
+        desc: '保底歪了、金光闪了，主播的表情管理也一起碎了。'
+      },
+      {
+        id: 'exam-notes', type: 'note', kind: 'study', art: 'exam',
+        tag: '手写笔记', topic: '复习',
+        title: '特征值手写笔记整理：迹与行列式、相似对角化一页速记',
+        author: '线代研习社', avatar: '线', av: ['#047857', '#34D399'],
+        views: '3.7万', duration: '08:16', time: '6 小时前',
+        foot: '笔记', hint: '收藏 1.2万'
+      },
+      {
+        id: 'diagonalization', type: 'video', kind: 'study', art: 'diagonal',
+        tag: '线代', topic: '对角化',
+        title: '矩阵对角化到底在做什么？用换基视角一次讲透',
+        author: '矩阵实验室', avatar: 'λ', av: ['#0F766E', '#2DD4BF'],
+        views: '18.9万', duration: '22:41', time: '3 天前',
+        foot: '相似矩阵', hint: '推导',
+        desc: '为什么相似矩阵有相同的特征值？换个基，答案就清楚了。'
+      },
+      {
+        id: 'food-hotpot', type: 'video', kind: 'fun', art: 'food',
+        tag: '美食', topic: '探店',
+        title: '广州深夜食堂｜人均 80 吃到扶墙的潮汕牛肉火锅',
+        author: '深夜放毒', avatar: '吃', av: ['#9A3412', '#FB923C'],
+        views: '51.6万', duration: '09:24', time: '2 小时前',
+        foot: '美食探店', hint: '下饭',
+        desc: '现切吊龙、胸口油和一碗热汤，夜宵时段请谨慎打开。'
+      },
+      {
+        id: 'trace-det', type: 'video', kind: 'study', art: 'trace',
+        tag: '速记', topic: '性质',
+        title: '特征值性质速记：迹、行列式与特征多项式的关系',
+        author: '高数小站', avatar: '∑', av: ['#9F1239', '#FB7185'],
+        views: '7.8万', duration: '05:52', time: '1 天前',
+        foot: '公式', hint: '速记'
+      },
+      {
+        id: 'fashion-ootd', type: 'note', kind: 'fun', art: 'fashion',
+        tag: '穿搭', topic: 'OOTD',
+        title: '158/90 秋冬 OOTD：一件大衣穿出三种氛围感',
+        author: '软软穿搭志', avatar: '衣', av: ['#9D174D', '#F9A8D4'],
+        views: '12.6万', duration: '01:38', time: '4 小时前',
+        foot: '穿搭灵感', hint: '图文'
+      },
+      {
+        id: 'la-map', type: 'note', kind: 'study', art: 'map',
+        tag: '知识地图', topic: '总结',
+        title: '线性代数知识地图：从 Ax=λx 到 SVD 的 12 个核心概念',
+        author: 'GeoGebra 笔记', avatar: '图', av: ['#1D4ED8', '#38BDF8'],
+        views: '5.2万', duration: '04:45', time: '2 天前',
+        foot: '知识体系', hint: '收藏 8600'
+      },
+      {
+        id: 'comedy-dorm', type: 'video', kind: 'fun', art: 'comedy',
+        tag: '搞笑', topic: '整活',
+        title: '大学生宿舍整活大赏：室友看完连夜申请换寝',
+        author: '哈哈哈研究所', avatar: '哈', av: ['#CA8A04', '#84CC16'],
+        views: '98.4万', duration: '03:51', time: '8 小时前',
+        foot: '搞笑日常', hint: '笑死',
+        desc: '宿舍门一开，节目效果拉满，室友已经开始收拾行李了。'
+      },
+      {
+        id: 'pset-6', type: 'note', kind: 'study', art: 'pset',
+        tag: '习题课', topic: 'PSET',
+        title: 'MIT 18.06 Problem Set 精讲：特征值证明题与易错点',
+        author: 'MIT PSET', avatar: 'P', av: ['#1E3A5F', '#60A5FA'],
+        views: '2.9万', duration: '11:03', time: '3 天前',
+        foot: '习题解析', hint: 'PDF'
+      },
+      {
+        id: 'romance-rumor', type: 'video', kind: 'fun', art: 'romance',
+        tag: '八卦', topic: '热搜',
+        title: '曝某顶流恋情实锤？同款行程与深夜同框全梳理',
+        author: '娱乐显微镜', avatar: '恋', av: ['#9F1239', '#FDA4AF'],
+        views: '136.8万', duration: '04:12', time: '1 小时前',
+        foot: '明星娱乐', hint: '热',
+        desc: '同款行程、深夜同框与工作室回应，时间线一次梳理。'
+      },
+      {
+        id: 'pytorch-eig', type: 'video', kind: 'study', art: 'pytorch',
+        tag: 'PyTorch', topic: '代码',
+        title: 'PyTorch 实战：torch.linalg.eig 与矩阵批量运算性能优化',
+        author: 'Torch 小站', avatar: 'T', av: ['#0F172A', '#34D399'],
+        views: '4.6万', duration: '14:32', time: '昨天',
+        foot: '深度学习', hint: '实战',
+        desc: 'eig、eigh 与 svd 的差异，以及 batch 矩阵运算的显存技巧。'
       }
     ];
-    document.getElementById('load-more-btn').addEventListener('click', () => {
-      const container = document.getElementById('feed-container');
-      extraCards.forEach((item) => {
-        const card = document.createElement('article');
-        card.className = 'bili-video-card';
-        card.innerHTML = `
-          <div>
-            <span class="bili-video-card__tag">${item.tag}</span>
-            <a class="bili-video-card__info--tit" href="#">${item.title}</a>
-            <p class="bili-video-card__desc">${item.desc}</p>
+
+    const extraCards = [
+      {
+        id: 'exam-2024', type: 'note', kind: 'study', art: 'exampaper',
+        tag: '真题', topic: '考研',
+        title: '考研数学真题复盘：实对称矩阵特征值与正交矩阵 Q 的构造',
+        author: '考研数学组', avatar: '研', av: ['#1D4ED8', '#38BDF8'],
+        views: '6.4万', duration: '13:20', time: '刚刚',
+        foot: '真题', hint: '收藏 9200'
+      },
+      {
+        id: 'eigen-geometry', type: 'note', kind: 'study', art: 'geometry',
+        tag: '几何直观', topic: '特征值',
+        title: '特征向量为什么在变换后方向不变？一组旋转动画看懂 λ',
+        author: '数学可视化', avatar: 'λ', av: ['#1E3A8A', '#60A5FA'],
+        views: '8.1万', duration: '07:09', time: '刚刚',
+        foot: '几何直觉', hint: '动画'
+      },
+      {
+        id: 'game-ranked', type: 'video', kind: 'fun', art: 'gamefail',
+        tag: '游戏', topic: '翻车',
+        title: '排位赛最离谱翻盘：丝血反杀后队友集体沉默',
+        author: '电竞下饭局', avatar: '游', av: ['#1E3A8A', '#F97316'],
+        views: '73.5万', duration: '08:44', time: '刚刚',
+        foot: '游戏直播', hint: '高能'
+      },
+      {
+        id: 'travel-weekend', type: 'video', kind: 'fun', art: 'travel',
+        tag: '旅行', topic: 'Vlog',
+        title: '周末逃离城市计划：海边日落、露营和一整晚的晚风',
+        author: '一只旅行箱', avatar: '旅', av: ['#7C3AED', '#FB923C'],
+        views: '15.2万', duration: '10:26', time: '刚刚',
+        foot: '旅行 Vlog', hint: '治愈'
+      }
+    ];
+
+    const feed = document.getElementById('feed-container');
+    const countEl = document.getElementById('feed-count');
+    const toast = document.getElementById('toast');
+    const columnCount = 4;
+    const columns = [];
+    let renderedCount = 0;
+    let extrasLoaded = false;
+    let toastTimer = null;
+
+    for (let i = 0; i < columnCount; i += 1) {
+      const col = document.createElement('div');
+      col.className = 'feed-column';
+      col.setAttribute('data-column', String(i + 1));
+      feed.appendChild(col);
+      columns.push(col);
+    }
+
+    function cardMarkup(item) {
+      const coverRatio = item.type === 'note' ? 'note' : 'video';
+      const statIcon = item.type === 'note' ? icons.heart : icons.play;
+      const tagClass = item.kind === 'fun' ? ' cover-tag--fun' : '';
+      const desc = item.desc ? `<p class="card-desc">${item.desc}</p>` : '';
+      return `
+        <a class="cover-link" href="#card-${item.id}" aria-label="${item.title}">
+          <div class="cover cover--${coverRatio}">
+            ${coverArt[item.art](`cover-${item.id}`)}
+            <span class="cover-tag${tagClass}">${item.tag}</span>
+            <span class="cover-topic">${item.topic}</span>
+            <span class="cover-stat">${statIcon}${item.views}</span>
+            <span class="cover-duration">${item.duration}</span>
           </div>
-        `;
-        container.appendChild(card);
+        </a>
+        <div class="card-body">
+          <h3 class="card-title"><a href="#card-${item.id}">${item.title}</a></h3>
+          ${desc}
+          <div class="card-meta">
+            <span class="avatar" style="--av1:${item.av[0]};--av2:${item.av[1]}" aria-hidden="true"><span>${item.avatar}</span></span>
+            <span class="author">${item.author}</span>
+            <span class="meta-dot">·</span>
+            <span class="meta-time">${item.time}</span>
+          </div>
+          <div class="card-foot">
+            <span class="card-foot__tag">${item.foot}</span>
+            <span class="card-foot__hint">${icons.bookmark}${item.hint}</span>
+          </div>
+        </div>`;
+    }
+
+    function appendCard(item) {
+      const article = document.createElement('article');
+      article.className = `feed-card feed-card--${item.type}`;
+      article.id = `card-${item.id}`;
+      article.setAttribute('data-kind', item.kind);
+      article.setAttribute('data-card-id', item.id);
+      article.innerHTML = cardMarkup(item);
+
+      const target = columns.reduce((shortest, column) =>
+        column.offsetHeight < shortest.offsetHeight ? column : shortest
+      );
+      target.appendChild(article);
+      renderedCount += 1;
+    }
+
+    function updateCount() {
+      countEl.textContent = String(renderedCount);
+      document.querySelectorAll('[data-load-more]').forEach((button) => {
+        button.disabled = extrasLoaded;
+        if (extrasLoaded) {
+          button.lastChild.textContent = ' 已加载全部内容';
+        }
+      });
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('is-visible');
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 1800);
+    }
+
+    cards.forEach(appendCard);
+    updateCount();
+
+    document.querySelectorAll('[data-load-more]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (extrasLoaded) return;
+        extraCards.forEach(appendCard);
+        extrasLoaded = true;
+        updateCount();
+        showToast('已追加 4 条推荐 · 共 20 条');
       });
     });
+
+    let remaining = 25 * 60;
+    const timerEl = document.getElementById('focus-timer');
+    window.setInterval(() => {
+      remaining = Math.max(0, remaining - 1);
+      const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const seconds = String(remaining % 60).padStart(2, '0');
+      timerEl.textContent = `${minutes}:${seconds}`;
+    }, 1000);
   </script>
 </body>
 </html>
