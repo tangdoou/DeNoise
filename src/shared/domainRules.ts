@@ -57,7 +57,9 @@ const DIRECT_PARK_RULES: DirectParkRule[] = [
     reasonTag: '短视频直入暂存区'
   },
   {
-    domains: ['douyu.com', 'huya.com', 'twitch.tv', 'live.bilibili.com'],
+    // live.bilibili.com is intentionally NOT here: it also hosts live lectures and
+    // course streams, so it must go through content review (see CONTENT_CHECK_RULES).
+    domains: ['douyu.com', 'huya.com', 'twitch.tv'],
     siteName: '直播平台',
     reasonTag: '娱乐直播直入暂存区'
   },
@@ -335,6 +337,10 @@ export function matchDomainStage1(rawUrl: string): DomainRuleMatch {
   };
 }
 
+/**
+ * Unambiguous entertainment markers. A hit here is enough to call a page noise,
+ * because none of these words have a common technical / academic meaning.
+ */
 const ENTERTAINMENT_NOISE_KEYWORDS = [
   '真人秀',
   '综艺',
@@ -345,14 +351,11 @@ const ENTERTAINMENT_NOISE_KEYWORDS = [
   '八卦',
   '吃瓜',
   '娱乐圈',
-  '明星',
-  '热搜',
   '恋综',
   '下饭',
   '追剧',
   '电影解说',
   '游戏实况',
-  '主播',
   '带货',
   '穿搭',
   '美妆',
@@ -365,6 +368,13 @@ const ENTERTAINMENT_NOISE_KEYWORDS = [
   '爽剧',
   '短剧'
 ];
+
+/**
+ * Words that usually mean entertainment but are also common in technical writing
+ * ("热搜引擎", "主播推荐系统", "游戏理论", "明星公司"). They only count as a weak
+ * signal and can be outweighed by task-token matches.
+ */
+const AMBIGUOUS_ENTERTAINMENT_KEYWORDS = ['明星', '热搜', '主播', '游戏', '直播', '购物'];
 
 const LEARNING_SIGNAL_KEYWORDS = [
   '教程',
@@ -422,6 +432,74 @@ export function extractTaskTokens(taskIntent: string): string[] {
   return Array.from(new Set([...ascii, ...cjkTokens]));
 }
 
+/**
+ * Chinese has no spaces, so a whole sentence like "复习高等数学与线性代数特征值" is
+ * one un-splittable string and `includes()` will almost never match a real page
+ * title. We instead match on character bigrams, which is a robust, dependency-free
+ * way to measure overlap between two short Chinese strings.
+   */
+export function extractCjkBigrams(text: string): Set<string> {
+  const bigrams = new Set<string>();
+  const runs = (text || '').toLowerCase().match(/[\u4e00-\u9fff]{2,}/g) ?? [];
+  for (const run of runs) {
+    for (let index = 0; index + 1 < run.length; index += 1) {
+      bigrams.add(run.slice(index, index + 2));
+    }
+  }
+  return bigrams;
+}
+
+export interface TaskTokenMatch {
+  /** Number of distinct task tokens found in the text. */
+  matched: number;
+  /** Tokens that matched. */
+  tokens: string[];
+  /** Share of the task's Chinese bigrams that appear in the text (0..1). */
+  cjkCoverage: number;
+}
+
+/**
+ * Matches a page text against the task intent. ASCII tokens use whole-word
+ * matching; Chinese uses bigram coverage. Generic verb prefixes ("学习", "复习")
+ * are stripped from the task first so they don't inflate coverage.
+ */
+export function matchTaskTokens(taskIntent: string, text: string): TaskTokenMatch {
+  const haystack = (text || '').toLowerCase();
+  const asciiTokens = extractTaskTokens(taskIntent).filter((token) => /^[a-z0-9+#.-]+$/.test(token));
+  const matchedAscii = asciiTokens.filter((token) =>
+    new RegExp(`(^|[^a-z0-9+#.-])${token.replace(/[.+-]/g, '\\$&')}([^a-z0-9+#.-]|$)`, 'i').test(haystack)
+  );
+
+  const normalizedTask = (taskIntent || '')
+    .toLowerCase()
+    .replace(/^(学习|复习|研究|掌握|撰写|排查|精读|阅读|刷|攻克|实操|理解|梳理|调试|完成|整理|精读)+/g, '');
+  const textBigrams = extractCjkBigrams(haystack);
+  // "高等数学与线性代数特征值" is two topics. Score each sub-topic separately and
+  // keep the best one, so a page about either half still counts as on-task.
+  const subTopics = normalizedTask
+    .split(/[与和、及,，;；/|\s]+/)
+    .map((part) => part.trim())
+    .filter((part) => /[\u4e00-\u9fff]{2,}/.test(part));
+  const bigramSets = (subTopics.length > 0 ? subTopics : [normalizedTask]).map((topic) =>
+    extractCjkBigrams(topic)
+  );
+  let bestCoverage = 0;
+  for (const taskBigrams of bigramSets) {
+    if (taskBigrams.size === 0) continue;
+    let hitBigrams = 0;
+    for (const bigram of taskBigrams) {
+      if (textBigrams.has(bigram)) hitBigrams += 1;
+    }
+    bestCoverage = Math.max(bestCoverage, hitBigrams / taskBigrams.size);
+  }
+  const cjkCoverage = bestCoverage;
+  return {
+    matched: matchedAscii.length + (cjkCoverage >= 0.25 ? 1 : 0),
+    tokens: matchedAscii,
+    cjkCoverage
+  };
+}
+
 export function extractSearchQueryFromUrl(url: string): string {
   if (!url) return '';
   try {
@@ -460,9 +538,15 @@ export function evaluateStage2ContentHeuristics(params: {
   const titleAndQuery = `${params.title || ''} ${searchQuery}`.toLowerCase();
 
   const hitEntertainment = ENTERTAINMENT_NOISE_KEYWORDS.find((kw) => fullText.includes(kw.toLowerCase()));
-  const taskTokens = extractTaskTokens(params.taskIntent);
-  const matchedTaskTokens = taskTokens.filter((token) => fullText.includes(token));
-  const matchedTitleTaskTokens = taskTokens.filter((token) => titleAndQuery.includes(token));
+  const titleMatch = matchTaskTokens(params.taskIntent, titleAndQuery);
+  const fullMatch = matchTaskTokens(params.taskIntent, fullText);
+  // A page counts as task-relevant when the title alone carries enough of the task.
+  const matchedTitleTaskTokens = titleMatch.cjkCoverage >= 0.25 || titleMatch.tokens.length > 0
+    ? [...titleMatch.tokens, ...(titleMatch.cjkCoverage >= 0.25 ? ['任务关键词'] : [])]
+    : [];
+  const matchedTaskTokens = fullMatch.cjkCoverage >= 0.25 || fullMatch.tokens.length > 0
+    ? [...fullMatch.tokens, ...(fullMatch.cjkCoverage >= 0.25 ? ['任务关键词'] : [])]
+    : [];
   const hitLearning = LEARNING_SIGNAL_KEYWORDS.find((kw) => titleAndQuery.includes(kw.toLowerCase()));
 
   // 1. 标题或搜索词直接命中任务核心词，且不含娱乐噪音 -> 高分通过
@@ -470,12 +554,12 @@ export function evaluateStage2ContentHeuristics(params: {
     return {
       decisive: true,
       isRelevant: true,
-      relevanceScore: Math.min(96, 82 + matchedTitleTaskTokens.length * 7),
-      reasonTag: `匹配任务「${matchedTitleTaskTokens[0]}」`
+      relevanceScore: Math.min(96, 80 + Math.round(titleMatch.cjkCoverage * 14) + titleMatch.tokens.length * 6),
+      reasonTag: `匹配任务关键词 (${Math.round(titleMatch.cjkCoverage * 100)}%)`
     };
   }
 
-  // 2. 命中强娱乐/综艺/八卦特征（如搜索“哈哈哈”出现《哈哈哈哈哈》真人秀），且未命中任务词 -> 直接判定为分心
+  // 2. 命中强娱乐/综艺/八卦特征，且未命中任务词 -> 直接判定为分心
   if (hitEntertainment && matchedTitleTaskTokens.length === 0) {
     return {
       decisive: true,
@@ -508,10 +592,19 @@ export function evaluateStage2ContentHeuristics(params: {
     };
   }
 
+  // Ambiguous words ("热搜引擎", "游戏理论", "明星公司") deliberately do NOT decide
+  // anything here. They fall through as non-decisive and go to the LLM.
   return {
     decisive: false,
     isRelevant: matchedTaskTokens.length > 0 || Boolean(hitLearning),
-    relevanceScore: matchedTaskTokens.length > 0 ? 68 : hitLearning ? 56 : 28,
+    relevanceScore:
+      matchedTaskTokens.length > 0
+        ? Math.min(74, 56 + Math.round(fullMatch.cjkCoverage * 18))
+        : hitLearning
+          ? 56
+          : AMBIGUOUS_ENTERTAINMENT_KEYWORDS.some((kw) => fullText.includes(kw))
+            ? 34
+            : 28,
     reasonTag: matchedTaskTokens.length > 0 ? '相关资料' : hitLearning ? '泛学习内容' : '疑似偏离任务'
   };
 }

@@ -1,4 +1,3 @@
-import { updateSessionState } from '../shared/storage';
 import { ExtensionMessage, FocusSessionState, JudgeItemResult } from '../shared/types';
 import { resolveSiteAdapter, SiteAdapter } from './siteAdapters';
 
@@ -479,15 +478,11 @@ export class DomPurifierEngine {
       }
 
       if (newlyBlurredCount > 0 && this.active && this.sessionId === activeSessionId) {
-        void updateSessionState((prev) => {
-          if (!prev.isActive || prev.sessionId !== activeSessionId) return prev;
-          return {
-            ...prev,
-            stats: {
-              ...prev.stats,
-              blurredCardsCount: prev.stats.blurredCardsCount + newlyBlurredCount
-            }
-          };
+        // Route through the service worker: it owns the session state and serialises
+        // writes, so concurrent blur batches never drop each other's counts.
+        void sendRuntimeMessage({
+          type: 'REPORT_CARDS_BLURRED',
+          payload: { count: newlyBlurredCount, sessionId: activeSessionId }
         });
       }
     }
@@ -556,10 +551,7 @@ export class DomPurifierEngine {
       tokenizeTitle(title).forEach((token) => this.positiveKeywords.add(token));
       this.applyRelevantBadge(el);
       if (url) {
-        void updateSessionState((prev) => ({
-          ...prev,
-          sessionWhitelistUrls: Array.from(new Set([...prev.sessionWhitelistUrls, url]))
-        }));
+        void sendRuntimeMessage({ type: 'ADD_SESSION_WHITELIST_URL', payload: { url } });
       }
     });
 

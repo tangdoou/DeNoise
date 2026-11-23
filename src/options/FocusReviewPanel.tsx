@@ -23,6 +23,8 @@ export interface FocusReviewPanelProps {
   isGeneratingReview: boolean;
   reviewError: string;
   onGenerateReview: () => void;
+  demoMode?: boolean;
+  onToggleDemoHistory?: () => void;
 }
 
 type TimeRangeKey = 'today' | '7d' | '30d' | '365d' | 'all';
@@ -130,7 +132,9 @@ export const FocusReviewPanel: React.FC<FocusReviewPanelProps> = ({
   periodReview,
   isGeneratingReview,
   reviewError,
-  onGenerateReview
+  onGenerateReview,
+  demoMode = false,
+  onToggleDemoHistory
 }) => {
   const [timeRange, setTimeRange] = useState<TimeRangeKey>('30d');
   const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('minutes');
@@ -350,12 +354,13 @@ export const FocusReviewPanel: React.FC<FocusReviewPanelProps> = ({
         durationMinutes: rec.durationMinutes,
         stats: {
           blurredCardsCount: rec.blurredCount,
-          removedNoiseWidgetsCount: Math.max(2, Math.round(rec.blurredCount * 0.18)),
+          // FocusHistoryRecord does not persist these, so we must not invent them.
+          removedNoiseWidgetsCount: 0,
           parkedOrClosedTabsCount: rec.parkedCount,
-          visionProtectedTabsCount: rec.intensity === 'strict' ? Math.max(1, rec.parkedCount - 1) : 0,
+          visionProtectedTabsCount: 0,
           driftNudgesCount: rec.driftCount,
-          totalScannedItems: Math.max(1, rec.blurredCount + rec.parkedCount + 12),
-          relevantKeptItems: Math.max(8, Math.round((rec.blurredCount + 12) * 0.72))
+          totalScannedItems: rec.blurredCount + rec.parkedCount,
+          relevantKeptItems: 0
         },
         blackboxCount: rec.intensity === 'strict' ? rec.parkedCount : 0,
         parkedCount: rec.parkedCount,
@@ -371,7 +376,7 @@ export const FocusReviewPanel: React.FC<FocusReviewPanelProps> = ({
                   `持续专注 ${rec.durationMinutes} 分钟，环境信噪比 ${rec.snrPercent.toFixed(1)}%`,
                   `净化推荐卡片 ${rec.blurredCount} 条，休息舱接管 ${rec.parkedCount} 个标签页`
                 ],
-                modelUsed: 'DeepSeek V4.1-Flash',
+                modelUsed: '本机专注账本',
                 generatedAt: rec.endTime
               }
             : undefined
@@ -383,6 +388,22 @@ export const FocusReviewPanel: React.FC<FocusReviewPanelProps> = ({
 
   return (
     <div className="space-y-4">
+      {demoMode && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#D9730D]/40 bg-[#D9730D]/10 px-4 py-2.5">
+          <span className="text-[12px] font-medium text-[#B45309]">
+            🎬 当前展示的是<strong>演示数据</strong>，并非你的真实专注记录。做真实专注时请先清除。
+          </span>
+          {onToggleDemoHistory && (
+            <button
+              type="button"
+              onClick={onToggleDemoHistory}
+              className="shrink-0 rounded-md border border-[#D9730D]/50 bg-white px-2.5 py-1 text-[11.5px] font-medium text-[#B45309] transition-colors hover:bg-[#FED7AA]"
+            >
+              清除演示数据
+            </button>
+          )}
+        </div>
+      )}
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E9E9E7] bg-white px-5 py-3.5">
         <div>
           <div className="flex items-center gap-2">
@@ -400,6 +421,16 @@ export const FocusReviewPanel: React.FC<FocusReviewPanelProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {!demoMode && onToggleDemoHistory && (
+            <button
+              type="button"
+              onClick={onToggleDemoHistory}
+              title="载入一组虚构的专注记录，仅用于演示与截图"
+              className="inline-flex items-center gap-1 rounded-lg border border-dashed border-[#E9E9E7] bg-white px-3 py-1.5 text-[12px] font-medium text-[#787774] transition-colors hover:border-[#D9730D] hover:text-[#B45309]"
+            >
+              <span>载入演示数据</span>
+            </button>
+          )}
           <div className="inline-flex rounded-lg border border-[#E9E9E7] bg-[#F7F7F5] p-0.5">
             {RANGE_OPTIONS.map((option) => {
               const active = timeRange === option.id;
@@ -472,7 +503,7 @@ export const FocusReviewPanel: React.FC<FocusReviewPanelProps> = ({
             <span className="text-[12px] text-[#787774]">页</span>
           </div>
           <div className="mt-1.5 text-[11px] text-[#787774]">
-            偏航温和召回 {rangeKpis.driftTotal} 次 · 0 误杀
+            偏航温和召回 {rangeKpis.driftTotal} 次
           </div>
         </div>
 

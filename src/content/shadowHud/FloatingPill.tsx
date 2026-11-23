@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { calculateSnrPercent } from '../../shared/constants';
+import { DeNoiseLogo } from '../../shared/DeNoiseLogo';
 import { FocusIntensity, FocusSessionState } from '../../shared/types';
 
 export interface FloatingPillProps {
@@ -125,7 +126,10 @@ export const FloatingPill: React.FC<FloatingPillProps> = ({
         <div className="dn-pill-menu" role="menu" aria-label="DeNoise 快捷菜单">
           <div className="dn-pill-menu-header">
             <div className="dn-pill-menu-brand">
-              <span className="dn-pill-menu-title">DeNoise 专注舱</span>
+              <span className="dn-pill-menu-title-wrap">
+                <DeNoiseLogo size={18} />
+                <span className="dn-pill-menu-title">DeNoise 专注舱</span>
+              </span>
               <span className="dn-tag">{INTENSITY_LABEL[session.intensity]}</span>
             </div>
             <div className="dn-pill-menu-task" title={session.taskIntent}>

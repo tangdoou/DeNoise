@@ -1,6 +1,4 @@
 import {
-  BUILTIN_DEEPSEEK_API_KEY,
-  BUILTIN_ZLEAP_API_KEY,
   DEFAULT_SETTINGS,
   INITIAL_SESSION_STATE,
   STORAGE_KEYS
@@ -13,6 +11,47 @@ import {
   FocusTimelineEvent,
   ProviderId
 } from './types';
+
+/**
+ * v1.0.0 / v1.1.0 shipped with API keys compiled into the bundle and auto-saved
+ * them into users' chrome.storage.local. Those keys are revoked, but the stale
+ * values still sit in existing installs and would be sent on every request.
+ * Compare SHA-256 prefixes so the raw keys never appear in source again.
+ */
+const REVOKED_KEY_HASH_PREFIXES = new Set([
+  'e2d40d10bd3158bf',
+  '381d510034d0b6fa'
+]);
+
+async function sha256Prefix(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value.trim());
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .slice(0, 8)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function purgeRevokedKeys(
+  providers: AppSettings['providers']
+): Promise<boolean> {
+  let changed = false;
+  for (const provider of Object.values(providers)) {
+    const key = provider.apiKey?.trim();
+    if (!key) continue;
+    let isRevoked = false;
+    try {
+      isRevoked = REVOKED_KEY_HASH_PREFIXES.has(await sha256Prefix(key));
+    } catch {
+      isRevoked = false;
+    }
+    if (isRevoked) {
+      provider.apiKey = '';
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 export async function getAppSettings(): Promise<AppSettings> {
   try {
@@ -31,11 +70,8 @@ export async function getAppSettings(): Promise<AppSettings> {
             id
           };
         }
-        // Auto-fill DeepSeek V4.1-Flash and user key if empty or still on legacy default
-        if (!mergedProviders.deepseek.apiKey || !mergedProviders.deepseek.apiKey.trim()) {
-          mergedProviders.deepseek.apiKey = BUILTIN_DEEPSEEK_API_KEY;
-          mergedProviders.deepseek.enabled = true;
-        }
+        const purgedRevokedKeys = await purgeRevokedKeys(mergedProviders);
+        // Migrate the model name only. The API key is user-owned and is never auto-filled.
         if (
           mergedProviders.deepseek.model === 'deepseek-chat' ||
           !mergedProviders.deepseek.model
@@ -55,11 +91,6 @@ export async function getAppSettings(): Promise<AppSettings> {
             model: DEFAULT_SETTINGS.providers.jev.model,
             supportsVision: DEFAULT_SETTINGS.providers.jev.supportsVision
           };
-        }
-        // Auto-fill the built-in Zleap Zev-1 key if the user hasn't set one
-        if (!mergedProviders.jev.apiKey?.trim() && BUILTIN_ZLEAP_API_KEY) {
-          mergedProviders.jev.apiKey = BUILTIN_ZLEAP_API_KEY;
-          mergedProviders.jev.enabled = true;
         }
         // 只迁移我们历史上内置过的旧模型名，用户自己填的模型名一律不动
         const LEGACY_MODEL_IDS: Partial<Record<ProviderId, string[]>> = {
@@ -100,13 +131,20 @@ export async function getAppSettings(): Promise<AppSettings> {
         const primaryHasKey = Boolean(mergedProviders[currentPrimary]?.apiKey?.trim());
         const visionHasKey = Boolean(mergedProviders[currentVision]?.apiKey?.trim());
 
-        return {
+        const settings: AppSettings = {
           ...DEFAULT_SETTINGS,
           ...stored,
           providers: mergedProviders,
           primaryFastProvider: primaryHasKey ? currentPrimary : 'deepseek',
           visionReviewProvider: visionHasKey ? currentVision : 'deepseek'
         };
+        if (purgedRevokedKeys) {
+          // Persist the cleaned settings so the revoked key is gone for good.
+          void chrome.storage.local
+            .set({ [STORAGE_KEYS.SETTINGS]: settings })
+            .catch(() => undefined);
+        }
+        return settings;
       }
     }
   } catch (err) {
@@ -159,13 +197,33 @@ export async function saveSessionState(state: FocusSessionState): Promise<void> 
   }
 }
 
+/**
+ * Serialises read-modify-write cycles on the session state. chrome.storage has no
+ * transactions, so two concurrent `updateSessionState(prev => …)` calls both read
+ * the same `prev` and the second write silently drops the first update. The content
+ * script (blur counters) and the service worker (judge counters) hit this constantly.
+   */
+let sessionWriteChain: Promise<unknown> = Promise.resolve();
+
+function queueSessionWrite<T>(task: () => Promise<T>): Promise<T> {
+  const run = sessionWriteChain.then(task, task);
+  // Keep the chain alive even if this task rejects; the caller still sees the error.
+  sessionWriteChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
 export async function updateSessionState(
   updater: (prev: FocusSessionState) => FocusSessionState
 ): Promise<FocusSessionState> {
-  const current = await getSessionState();
-  const next = updater(current);
-  await saveSessionState(next);
-  return next;
+  return queueSessionWrite(async () => {
+    const current = await getSessionState();
+    const next = updater(current);
+    await saveSessionState(next);
+    return next;
+  });
 }
 
 export async function appendSessionTimelineEvent(
@@ -336,6 +394,50 @@ function buildSeededHistoryRecords(nowMs = Date.now()): FocusHistoryRecord[] {
   return [...recent, ...archived];
 }
 
+const DEMO_RECORD_PREFIX = 'seed-';
+const DEMO_HISTORY_FLAG = 'denoise_demo_history_v1';
+
+export function isDemoHistoryRecord(record: FocusHistoryRecord): boolean {
+  return record.id.startsWith(DEMO_RECORD_PREFIX);
+}
+
+export async function isDemoHistoryEnabled(): Promise<boolean> {
+  try {
+    if (typeof chrome === 'undefined' || !chrome.storage?.local) return false;
+    const res = await chrome.storage.local.get(DEMO_HISTORY_FLAG);
+    return res[DEMO_HISTORY_FLAG] === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Opt-in demo data for talks / screenshots. Never written automatically — the
+ * heatmap must show the user's real focus history by default.
+   */
+export async function loadDemoHistoryRecords(): Promise<FocusHistoryRecord[]> {
+  const current = await getFocusHistoryRecords();
+  const demo = buildSeededHistoryRecords();
+  const merged = [...current.filter((item) => !isDemoHistoryRecord(item)), ...demo];
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.FOCUS_HISTORY]: merged,
+      [DEMO_HISTORY_FLAG]: true
+    });
+  }
+  return merged;
+}
+
+export async function clearDemoHistoryRecords(): Promise<FocusHistoryRecord[]> {
+  const current = await getFocusHistoryRecords();
+  const real = current.filter((item) => !isDemoHistoryRecord(item));
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    await chrome.storage.local.set({ [STORAGE_KEYS.FOCUS_HISTORY]: real });
+    await chrome.storage.local.remove(DEMO_HISTORY_FLAG);
+  }
+  return real;
+}
+
 export async function getFocusHistoryRecords(): Promise<FocusHistoryRecord[]> {
   try {
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
@@ -343,26 +445,23 @@ export async function getFocusHistoryRecords(): Promise<FocusHistoryRecord[]> {
       const stored = res[STORAGE_KEYS.FOCUS_HISTORY];
       if (Array.isArray(stored) && stored.length > 0) {
         const typed = stored as FocusHistoryRecord[];
-        const needsSeedUpgrade =
-          typed.some((item) => item.id === 'seed-year-1') ||
-          (typed.some((item) => item.id.startsWith('seed-')) &&
-            !typed.some((item) => item.id === 'seed-archive-40'));
-        if (needsSeedUpgrade) {
-          const realRecords = typed.filter((item) => !item.id.startsWith('seed-'));
-          const upgraded = [...realRecords, ...buildSeededHistoryRecords()];
-          await chrome.storage.local.set({ [STORAGE_KEYS.FOCUS_HISTORY]: upgraded });
-          return upgraded;
+        // Upgrades from <= v1.1.0 silently injected fake "seed-*" records on first
+        // run. Remove them unless the user explicitly turned demo mode back on.
+        const demoFlag = await chrome.storage.local.get(DEMO_HISTORY_FLAG);
+        const demoEnabled = demoFlag[DEMO_HISTORY_FLAG] === true;
+        if (!demoEnabled && typed.some(isDemoHistoryRecord)) {
+          const realRecords = typed.filter((item) => !isDemoHistoryRecord(item));
+          await chrome.storage.local.set({ [STORAGE_KEYS.FOCUS_HISTORY]: realRecords });
+          return realRecords;
         }
         return typed;
       }
-      const seeded = buildSeededHistoryRecords();
-      await chrome.storage.local.set({ [STORAGE_KEYS.FOCUS_HISTORY]: seeded });
-      return seeded;
+      return [];
     }
   } catch (err) {
     console.warn('[DeNoise] Failed to read focus history:', err);
   }
-  return buildSeededHistoryRecords();
+  return [];
 }
 
 export async function appendFocusHistoryRecord(
@@ -433,7 +532,7 @@ export function computeFocusPeriodSummary(
     100,
     Math.round((weekMinutes / weeklyTargetMinutes) * 100)
   );
-  const rewardedProDays = Math.max(3, Math.floor(monthMinutes / 60) * 2);
+  const rewardedProDays = Math.floor(monthMinutes / 60) * 2;
 
   const formatDayKey = (date: Date) =>
     `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -463,8 +562,10 @@ export function computeFocusPeriodSummary(
     weeklyTargetMinutes,
     weeklyProgressPercent,
     membershipTier:
-      weekMinutes >= weeklyTargetMinutes
-        ? 'Pro 满血会员 (本周打卡已解锁)'
-        : `Pro 激励体验中 (已兑 +${rewardedProDays} 天)`
+      records.length === 0
+        ? '完成第一次专注即可开始累计 Pro 激励'
+        : weekMinutes >= weeklyTargetMinutes
+          ? 'Pro 满血会员 (本周打卡已解锁)'
+          : `Pro 激励累计中 (+${rewardedProDays} 天)`
   };
 }

@@ -97,7 +97,7 @@ function fillAndStrokeRoundedRect(
   width: number,
   height: number,
   radius: number,
-  fillColor: string,
+  fillColor: string | CanvasGradient,
   strokeColor?: string,
   lineWidth = 1
 ): void {
@@ -198,22 +198,52 @@ function drawPerforatedEdge(
 }
 
 function drawBrandLogo(ctx: CanvasRenderingContext2D, posX: number, posY: number, size: number): void {
-  fillAndStrokeRoundedRect(ctx, posX, posY, size, size, 9, '#18181B');
+  const scale = size / 128;
+  ctx.save();
+  ctx.translate(posX, posY);
+  ctx.scale(scale, scale);
 
-  const barHeights = [8, 16, 22, 14, 19, 9];
-  const barWidth = 2.4;
-  const gap = 2.6;
-  const totalBarsWidth = barHeights.length * barWidth + (barHeights.length - 1) * gap;
-  const startX = posX + (size - totalBarsWidth) / 2;
-  const centerY = posY + size / 2;
+  const bgGrad = ctx.createLinearGradient(16, 8, 112, 120);
+  bgGrad.addColorStop(0, '#272725');
+  bgGrad.addColorStop(1, '#141413');
+  fillAndStrokeRoundedRect(ctx, 2, 2, 124, 124, 30, bgGrad, 'rgba(255, 255, 255, 0.1)', 1.5);
 
-  ctx.fillStyle = '#FFFFFF';
-  barHeights.forEach((barHeight, barIndex) => {
-    const barX = startX + barIndex * (barWidth + gap);
-    const barY = centerY - barHeight / 2;
-    drawRoundedRectPath(ctx, barX, barY, barWidth, barHeight, 1.2);
-    ctx.fill();
-  });
+  const glowGrad = ctx.createRadialGradient(96, 64, 0, 96, 64, 28);
+  glowGrad.addColorStop(0, 'rgba(16, 185, 129, 0.34)');
+  glowGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+  ctx.fillStyle = glowGrad;
+  ctx.beginPath();
+  ctx.arc(96, 64, 28, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(21, 64);
+  ctx.bezierCurveTo(26, 64, 27, 89, 32, 89);
+  ctx.bezierCurveTo(40, 89, 43, 42, 51, 42);
+  ctx.bezierCurveTo(59, 42, 61, 64, 69, 64);
+  ctx.strokeStyle = 'rgba(113, 113, 122, 0.52)';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(21, 64);
+  ctx.bezierCurveTo(26, 64, 27, 39, 32, 39);
+  ctx.bezierCurveTo(40, 39, 43, 86, 51, 86);
+  ctx.bezierCurveTo(59, 86, 61, 64, 69, 64);
+  ctx.lineTo(78, 64);
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 9.5;
+  ctx.stroke();
+
+  ctx.fillStyle = '#10B981';
+  ctx.beginPath();
+  ctx.arc(96, 64, 10.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawReceiptBarcode(
@@ -464,7 +494,12 @@ export async function exportReceiptAsPng(data: ReceiptExportData): Promise<void>
     stats.totalScannedItems ||
     stats.blurredCardsCount + stats.removedNoiseWidgetsCount + stats.relevantKeptItems;
   const relevantKept = stats.relevantKeptItems;
-  const heroSummary = `本次共扫描 ${totalScanned} 条网页信息，精准保留 ${relevantKept} 条任务相关干货`;
+  // Historical records only persist blur/park/drift counts, so "scanned" and
+  // "kept" are unknown there. Don't print a made-up "kept 0" line for them.
+  const hasScanStats = stats.totalScannedItems > 0 && stats.relevantKeptItems > 0;
+  const heroSummary = hasScanStats
+    ? `本次共扫描 ${totalScanned} 条网页信息，精准保留 ${relevantKept} 条任务相关干货`
+    : `本次共处理 ${stats.blurredCardsCount + stats.parkedOrClosedTabsCount} 条噪音，专注过程已归档`;
 
   ctx.fillStyle = '#065F46';
   ctx.font = `500 11px ${SANS_FONT}`;

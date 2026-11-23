@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { calculateSnrPercent } from '../../shared/constants';
+import { DeNoiseLogo } from '../../shared/DeNoiseLogo';
 import { exportReceiptAsPng } from '../../shared/receiptExporter';
 import { FocusIntensity, FocusSessionState } from '../../shared/types';
 
@@ -175,6 +176,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
         <div className="dn-receipt-paper">
           <div className="dn-receipt-header">
+            <div className="dn-receipt-logo">
+              <DeNoiseLogo size={34} />
+            </div>
             <div className="dn-receipt-brand">D e N o i s e</div>
             <div className="dn-receipt-sub dn-mono">ACTIVE NOISE CANCELLATION</div>
             <div className="dn-receipt-title">专注降噪结算小票</div>

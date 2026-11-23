@@ -33,6 +33,12 @@ interface ReviewOutcome {
   usedVision: boolean;
   score: number;
   reasonTag: string;
+  /**
+ * Closing a tab destroys everything in it (unsaved text, scroll, in-app state).
+ * We only allow it when a vision model actually looked at a screenshot and was
+ * confidently sure. Otherwise the tab may only be parked.
+   */
+  canClose: boolean;
 }
 
 type ChromeWindow = {
@@ -191,11 +197,14 @@ async function deepReview(
   });
   const review = result[0];
   const score = review?.relevanceScore ?? 0;
+  const usedVision = Boolean(review?.usedVision && screenshot);
   return {
     keep: score >= 50,
-    usedVision: Boolean(review?.usedVision && screenshot),
+    usedVision,
     score,
-    reasonTag: review?.reasonTag ?? '复核未确定'
+    reasonTag: review?.reasonTag ?? '复核未确定',
+    // No screenshot / no vision model => never close. "Unsure" always means "park".
+    canClose: usedVision && score < 30
   };
 }
 
@@ -381,6 +390,44 @@ async function parkTabs(
   }
 }
 
+/**
+ * Runs inside the page. Returns true when it is reasonably safe to close the tab:
+ * no edited text fields, no onbeforeunload handler, no file picker in progress.
+   */
+function isPageSafeToCloseInPage(): boolean {
+  if (typeof (window as unknown as { onbeforeunload: unknown }).onbeforeunload === 'function') {
+    return false;
+  }
+  const editableFields = document.querySelectorAll<
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  >('input:not([type=button]):not([type=submit]):not([type=reset]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]), textarea, select, [contenteditable=""], [contenteditable="true"]');
+  for (const field of Array.from(editableFields)) {
+    if (field.isContentEditable && (field.textContent ?? '').trim().length > 0) {
+      return false;
+    }
+    if (field instanceof HTMLTextAreaElement && field.value.trim().length > 0) {
+      return false;
+    }
+    if (field instanceof HTMLInputElement && field.value.trim().length > 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+async function isPageSafeToClose(tabId: number): Promise<boolean> {
+  try {
+    const [execution] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: isPageSafeToCloseInPage
+    });
+    // If we cannot inspect the page, assume it is NOT safe to destroy.
+    return execution?.result !== true ? false : true;
+  } catch {
+    return false;
+  }
+}
+
 async function closeTabs(
   state: FocusSessionState,
   entries: TabWithSkeleton[],
@@ -388,7 +435,12 @@ async function closeTabs(
 ): Promise<void> {
   if (entries.length === 0) return;
   const blackboxItems: BlackboxTabItem[] = [];
+  const deferredToPark: TabWithSkeleton[] = [];
   for (const entry of entries) {
+    if (!(await isPageSafeToClose(entry.tab.id as number))) {
+      deferredToPark.push(entry);
+      continue;
+    }
     const review = results.get(entry.tab.id as number);
     const screenshot = await getTabScreenshot(entry.tab.id as number);
     blackboxItems.push({
@@ -403,6 +455,13 @@ async function closeTabs(
       closedAt: Date.now()
     });
   }
+  if (deferredToPark.length > 0) {
+    console.info(
+      `[DeNoise] Kept ${deferredToPark.length} tab(s) with unsaved input instead of closing them.`
+    );
+    await parkTabs(state, deferredToPark, true);
+  }
+  if (blackboxItems.length === 0) return;
   await updateSessionState((prev) => ({
     ...prev,
     blackboxTabs: [...prev.blackboxTabs, ...blackboxItems],
@@ -592,27 +651,20 @@ export async function governTabsOnSessionStart(
       continue;
     }
 
-    if (state.intensity === 'standard' || score < 15) {
-      if (state.intensity === 'standard') {
-        park.push(entry);
-        reviewOutcomes.set(tabId, {
-          keep: false,
-          usedVision: false,
-          score,
-          reasonTag: result?.reasonTag ?? '标签页降噪'
-        });
-      } else {
-        close.push(entry);
-        reviewOutcomes.set(tabId, {
-          keep: false,
-          usedVision: false,
-          score,
-          reasonTag: result?.reasonTag ?? '明确无关'
-        });
-      }
+    if (state.intensity === 'standard') {
+      park.push(entry);
+      reviewOutcomes.set(tabId, {
+        keep: false,
+        usedVision: false,
+        score,
+        reasonTag: result?.reasonTag ?? '标签页降噪',
+        canClose: false
+      });
       continue;
     }
 
+    // Strict mode: every candidate must go through the deep review. Domain rules
+    // and text heuristics alone are never allowed to close a tab.
     const review = await deepReview(state, entry);
     reviewOutcomes.set(tabId, review);
     if (review.keep) {
@@ -632,10 +684,11 @@ export async function governTabsOnSessionStart(
         classifiedLearningList.push(classified);
       }
       if (review.usedVision) visionProtectedCount += 1;
-    } else if (review.score >= 30) {
-      park.push(entry);
-    } else {
+    } else if (review.canClose) {
       close.push(entry);
+    } else {
+      // Uncertain, or no vision confirmation: fold, never destroy.
+      park.push(entry);
     }
   }
 

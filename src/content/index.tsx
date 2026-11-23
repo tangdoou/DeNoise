@@ -262,6 +262,12 @@ const SHADOW_HUD_CSS = `
     margin-bottom: 5px;
   }
 
+  .dn-pill-menu-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
   .dn-pill-menu-title {
     font-size: 12px;
     font-weight: 700;
@@ -786,6 +792,12 @@ const SHADOW_HUD_CSS = `
   .dn-receipt-header {
     text-align: center;
     padding-bottom: 4px;
+  }
+
+  .dn-receipt-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 6px;
   }
 
   .dn-receipt-brand {

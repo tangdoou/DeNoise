@@ -11,3 +11,4 @@ ppt-assets/
 *.key
 release/
 grill-me-sessions/
+.DS_Store

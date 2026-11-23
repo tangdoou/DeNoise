@@ -30,6 +30,7 @@ import {
   getFocusHistoryRecords,
   getSessionState
 } from '../shared/storage';
+import { DeNoiseLogo } from '../shared/DeNoiseLogo';
 import {
   BlackboxTabItem,
   ExtensionMessage,
@@ -66,7 +67,7 @@ const INTENSITY_OPTIONS: {
     id: 'strict',
     emoji: '🔥',
     title: '强力模式',
-    description: '相关页语义编组 + 净空关闭无关页 + 多模态看图防误杀黑匣子'
+    description: '相关页语义编组 + 看图确认无关才关闭（存疑只折叠）+ 黑匣子可恢复'
   }
 ];
 
@@ -552,23 +553,7 @@ export const PopupApp: React.FC = () => {
     <div className="flex min-h-[520px] w-[380px] flex-col bg-white text-[#191919] font-sans">
       <header className="flex items-center justify-between border-b border-[#E9E9E7] bg-white px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#191919] text-white">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M1.5 8H4L5.5 4.2L7.3 11.8L9 6.2L10.3 8H14.5"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <DeNoiseLogo size={24} className="shrink-0" />
           <span className="text-[14px] font-semibold tracking-tight text-[#191919]">
             DeNoise
           </span>

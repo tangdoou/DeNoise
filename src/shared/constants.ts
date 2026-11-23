@@ -8,16 +8,16 @@ export const STORAGE_KEYS = {
   FOCUS_HISTORY: 'denoise_focus_history_v1'
 } as const;
 
-export const BUILTIN_DEEPSEEK_API_KEY = import.meta.env.VITE_DENOISE_DEEPSEEK_KEY ?? '';
-export const BUILTIN_ZLEAP_API_KEY = import.meta.env.VITE_DENOISE_ZLEAP_KEY ?? '';
-
+// API keys are never compiled into the bundle. Every provider starts with an empty
+// key; users fill them in on the options page and they are persisted to
+// chrome.storage.local only.
 export const DEFAULT_SETTINGS: AppSettings = {
   providers: {
     deepseek: {
       id: 'deepseek',
       name: 'DeepSeek 官方高速直连 (V4.1-Flash 多模态)',
       enabled: true,
-      apiKey: BUILTIN_DEEPSEEK_API_KEY,
+      apiKey: '',
       baseUrl: 'https://api.deepseek.com/v1',
       model: 'deepseek-flash',
       supportsVision: true,
@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
       id: 'jev',
       name: 'Zleap Zev-1 (System-1 判别模型)',
       enabled: true,
-      apiKey: BUILTIN_ZLEAP_API_KEY,
+      apiKey: '',
       baseUrl: 'https://api.zleap.com/v1/systemone',
       model: 'Zev-1',
       supportsVision: false

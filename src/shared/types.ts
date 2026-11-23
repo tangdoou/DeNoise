@@ -236,6 +236,14 @@ export type ExtensionMessage =
       payload: { count: number };
     }
   | {
+      type: 'REPORT_CARDS_BLURRED';
+      payload: { count: number; sessionId: string };
+    }
+  | {
+      type: 'ADD_SESSION_WHITELIST_URL';
+      payload: { url: string };
+    }
+  | {
       type: 'REPORT_DRIFT_NUDGE_SHOWN';
       payload: { title: string; reasonTag: string };
     }
@@ -270,6 +278,8 @@ export type ExtensionMessage =
     }
   | { type: 'GET_FOCUS_STATS' }
   | { type: 'GENERATE_PERIOD_REVIEW' }
+  | { type: 'LOAD_DEMO_FOCUS_HISTORY' }
+  | { type: 'CLEAR_DEMO_FOCUS_HISTORY' }
   | {
       type: 'EXTRACT_TAB_DOM_SKELETON';
     }

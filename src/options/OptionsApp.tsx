@@ -27,6 +27,7 @@ import {
   getFocusHistoryRecords,
   saveAppSettings
 } from '../shared/storage';
+import { DeNoiseLogo } from '../shared/DeNoiseLogo';
 import {
   AppSettings,
   ExtensionMessage,
@@ -257,6 +258,7 @@ export const OptionsApp: React.FC = () => {
   const [periodReview, setPeriodReview] = useState<PeriodFocusReview | null>(null);
   const [isGeneratingReview, setIsGeneratingReview] = useState<boolean>(false);
   const [reviewError, setReviewError] = useState<string>('');
+  const [demoMode, setDemoMode] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -278,11 +280,16 @@ export const OptionsApp: React.FC = () => {
       try {
         const res = (await chrome.runtime.sendMessage({ type: 'GET_FOCUS_STATS' })) as {
           ok?: boolean;
-          data?: { summary?: FocusPeriodSummary; records?: FocusHistoryRecord[] };
+          data?: {
+            summary?: FocusPeriodSummary;
+            records?: FocusHistoryRecord[];
+            demoMode?: boolean;
+          };
         };
         if (res?.ok && res.data?.summary) {
           setFocusSummary(res.data.summary);
           setFocusRecords(res.data.records ?? []);
+          setDemoMode(Boolean(res.data.demoMode));
           return;
         }
       } catch {
@@ -293,6 +300,28 @@ export const OptionsApp: React.FC = () => {
     setFocusRecords(records);
     setFocusSummary(computeFocusPeriodSummary(records));
   }, []);
+
+  const handleToggleDemoHistory = async () => {
+    const type = demoMode ? 'CLEAR_DEMO_FOCUS_HISTORY' : 'LOAD_DEMO_FOCUS_HISTORY';
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return;
+    try {
+      const res = (await chrome.runtime.sendMessage({ type })) as {
+        ok?: boolean;
+        data?: {
+          summary?: FocusPeriodSummary;
+          records?: FocusHistoryRecord[];
+          demoMode?: boolean;
+        };
+      };
+      if (res?.ok && res.data?.summary) {
+        setFocusSummary(res.data.summary);
+        setFocusRecords(res.data.records ?? []);
+        setDemoMode(Boolean(res.data.demoMode));
+      }
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : '切换演示数据失败');
+    }
+  };
 
   useEffect(() => {
     void loadFocusReviewData();
@@ -652,23 +681,7 @@ export const OptionsApp: React.FC = () => {
         <aside className="w-full shrink-0 md:sticky md:top-7 md:w-[208px]">
           <div className="rounded-lg border border-[#E9E9E7] bg-white p-3.5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#191919] text-white">
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M1.5 8H4L5.5 4.2L7.3 11.8L9 6.2L10.3 8H14.5"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
+              <DeNoiseLogo size={28} className="shrink-0" />
               <div>
                 <div className="text-[14px] font-semibold tracking-tight text-[#191919]">
                   DeNoise
@@ -762,6 +775,8 @@ export const OptionsApp: React.FC = () => {
                 isGeneratingReview={isGeneratingReview}
                 reviewError={reviewError}
                 onGenerateReview={() => void handleGeneratePeriodReview()}
+                  demoMode={demoMode}
+                  onToggleDemoHistory={() => void handleToggleDemoHistory()}
               />
             ) : (
               <div className="flex items-center justify-center rounded-lg border border-[#E9E9E7] bg-white py-16 text-[12.5px] text-[#787774]">

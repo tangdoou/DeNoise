@@ -1,4 +1,8 @@
-import { evaluateStage2ContentHeuristics, matchDomainStage1 } from '../shared/domainRules';
+import {
+  evaluateStage2ContentHeuristics,
+  matchDomainStage1,
+  matchTaskTokens
+} from '../shared/domainRules';
 import { getAppSettings } from '../shared/storage';
 import {
   JudgeBatchRequest,
@@ -179,10 +183,23 @@ function localSemanticJudge(item: JudgeItemInput, taskIntent: string): JudgeItem
     // A missing or invalid URL does not affect the semantic score.
   }
 
-  for (const token of tokens) {
+  // ASCII tokens: whole-word match. Chinese: bigram coverage of any task sub-topic.
+  // (The old `text.includes(token)` never matched Chinese because a whole sentence
+  // like "复习线性代数特征值" is a single un-splittable string.)
+  const asciiTokens = tokens.filter((token) => /^[a-z0-9+#.-]+$/.test(token));
+  for (const token of asciiTokens) {
     if (token.length >= 2 && text.includes(token)) {
       score += token.length >= 4 ? 24 : 16;
       confidence += 0.05;
+    }
+  }
+  const taskMatch = matchTaskTokens(taskIntent, text);
+  if (taskMatch.cjkCoverage > 0) {
+    const coverageBonus = Math.round(taskMatch.cjkCoverage * 30);
+    score += coverageBonus;
+    confidence += Math.min(0.12, taskMatch.cjkCoverage * 0.12);
+    if (coverageBonus >= 15) {
+      reasons.push(`匹配任务 ${Math.round(taskMatch.cjkCoverage * 100)}%`);
     }
   }
 

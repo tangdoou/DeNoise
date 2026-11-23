@@ -1,10 +1,13 @@
 import { INITIAL_SESSION_STATE, calculateSnrPercent } from '../shared/constants';
 import {
+  clearDemoHistoryRecords,
+  isDemoHistoryEnabled,
   appendFocusHistoryRecord,
   appendSessionTimelineEvent,
   computeFocusPeriodSummary,
   getFocusHistoryRecords,
   getSessionState,
+  loadDemoHistoryRecords,
   saveSessionState,
   updateSessionState
 } from '../shared/storage';
@@ -486,6 +489,28 @@ async function handleMessage(
       const state = await getSessionState();
       return success(state);
     }
+    case 'REPORT_CARDS_BLURRED': {
+      await updateSessionState((prev) => {
+        if (!prev.isActive || prev.sessionId !== message.payload.sessionId) return prev;
+        return {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            blurredCardsCount: prev.stats.blurredCardsCount + message.payload.count
+          }
+        };
+      });
+      return success();
+    }
+    case 'ADD_SESSION_WHITELIST_URL': {
+      const url = message.payload.url?.trim();
+      if (!url) return success();
+      await updateSessionState((prev) => ({
+        ...prev,
+        sessionWhitelistUrls: Array.from(new Set([...prev.sessionWhitelistUrls, url]))
+      }));
+      return success();
+    }
     case 'REPORT_DRIFT_NUDGE_SHOWN': {
       await updateSessionState((prev) => ({
         ...prev,
@@ -564,7 +589,24 @@ async function handleMessage(
       const records = await getFocusHistoryRecords();
       return success({
         summary: computeFocusPeriodSummary(records),
-        records
+        records,
+        demoMode: await isDemoHistoryEnabled()
+      });
+    }
+    case 'LOAD_DEMO_FOCUS_HISTORY': {
+      const records = await loadDemoHistoryRecords();
+      return success({
+        summary: computeFocusPeriodSummary(records),
+        records,
+        demoMode: true
+      });
+    }
+    case 'CLEAR_DEMO_FOCUS_HISTORY': {
+      const records = await clearDemoHistoryRecords();
+      return success({
+        summary: computeFocusPeriodSummary(records),
+        records,
+        demoMode: false
       });
     }
     case 'GENERATE_PERIOD_REVIEW': {
